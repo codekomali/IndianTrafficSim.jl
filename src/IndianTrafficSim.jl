@@ -1,7 +1,9 @@
 module IndianTrafficSim
-using Agents
-using InteractiveDynamics
-# Write your package code here.
+
 include("Environment.jl")
+
+using .Environment: initial_plot!
+
+export initial_plot!
 
 end

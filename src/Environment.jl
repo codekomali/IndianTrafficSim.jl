@@ -3,6 +3,10 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
+module Environment
+
+export initial_plot!
+
 using Agents
 using InteractiveDynamics
 using CairoMakie
@@ -185,9 +189,9 @@ function drawRoad!(road::TwoWayVroad)
     drawRoad!(road.T2Broad)
 end
 
-function initial_plot()
+function initial_plot!()
     axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
-    fig, abmstepper = abmplot(
+    fig, _ = abmplot(
         initialize();
         am=vehicle_marker,
         ac=:blue,
@@ -198,4 +202,5 @@ function initial_plot()
     return fig
 end
 
-fig = initial_plot()
+
+end
