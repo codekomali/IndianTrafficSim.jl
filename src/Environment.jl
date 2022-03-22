@@ -7,13 +7,67 @@ using Agents
 using InteractiveDynamics
 using CairoMakie
 
-struct Road
-    alignment::Symbol
+abstract type Road end
+
+struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
     numLanes::Int
     laneWidth::Float64
+    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=5)
+        startPos = (startXpos, Ypos)
+        endPos = (endXpos, Ypos)
+        return new(startPos, endPos, numLanes, laneWidth)
+    end
 end
+
+struct VerticalRoad <: Road
+    startPos::NTuple{2,Float64}
+    endPos::NTuple{2,Float64}
+    numLanes::Int
+    laneWidth::Float64
+    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=5)
+        startPos = (Xpos, startYpos)
+        endPos = (Xpos, endYpos)
+        return new(startPos, endPos, numLanes, laneWidth)
+    end
+end
+
+struct TwoWayHroad <: Road
+    L2Rroad::HorizontalRoad
+    R2Lroad::HorizontalRoad
+    medianWidth::Float64
+    Ypos::Float64
+    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=5 )
+    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
+    L2RroadYpos = Ypos + widthBetweenRoads
+    R2LroadYpos = Ypos - widthBetweenRoads
+    L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
+    R2Lroad = HorizontalRoad(R2LroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
+    new(L2Rroad,R2Lroad,medianWidth,Ypos)
+    end
+end
+
+startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[2]
+endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[2]
+
+struct TwoWayVroad <: Road
+    T2Broad::VerticalRoad
+    B2Troad::VerticalRoad
+    medianWidth::Float64
+    Xpos::Float64
+    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=5 )
+    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
+    T2BroadXpos = Xpos + widthBetweenRoads
+    B2TroadXpos = Xpos - widthBetweenRoads
+    T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
+    B2Troad = VerticalRoad(B2TroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
+    new(T2Broad,B2Troad,medianWidth, Xpos)
+    end
+end
+
+startYPos(road::TwoWayVroad) = road.T2Broad.startPos[1]
+endYPos(road::TwoWayVroad) = road.T2Broad.endPos[1]
 
 mutable struct VehicleAgent <: AbstractAgent
     id::Int
@@ -53,16 +107,28 @@ end
 
 half_width(road::Road) = road.numLanes * road.laneWidth / 2
 
-top_boundary(road::Road) = (
+top_boundary(road::HorizontalRoad) = (
     road.startPos .+ (0, half_width(road)),
     road.endPos .+ (0, half_width(road))
 )
-bottom_boundary(road::Road) = (
+right_boundary(road::VerticalRoad) = (
+    road.startPos .+ (half_width(road), 0),
+    road.endPos .+ (half_width(road), 0)
+)
+bottom_boundary(road::HorizontalRoad) = (
     road.startPos .- (0, half_width(road)),
     road.endPos .- (0, half_width(road))
 )
+left_boundary(road::VerticalRoad) = (
+    road.startPos .- (half_width(road), 0),
+    road.endPos .- (half_width(road), 0)
+)
 
-function draw_road_boundaries(road::Road)
+reduce_y(line, val) = (line[1] .-(0,val), line[2] .- (0, val))
+
+reduce_x(line, val) = (line[1] .-(val,0), line[2] .- (val,0))
+
+function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
         top_boundary(road)...;
         color=:red,
@@ -75,9 +141,20 @@ function draw_road_boundaries(road::Road)
     )
 end
 
-reduce_y(line, val) = (line[1] .-(0,val), line[2] .- (0, val))
+function draw_road_boundaries!(road::VerticalRoad)
+    draw_line!(
+        right_boundary(road)...;
+        color=:red,
+        linewidth=2
+    )
+    draw_line!(
+        left_boundary(road)...;
+        color=:red,
+        linewidth=2
+    )
+end
 
-function draw_lane_markers(road::Road)
+function draw_lane_markers!(road::HorizontalRoad)
     last_boundary = top_boundary(road)
     for _ in 2:road.numLanes
         last_boundary = reduce_y(last_boundary, road.laneWidth)
@@ -85,20 +162,38 @@ function draw_lane_markers(road::Road)
     end
 end
 
+function draw_lane_markers!(road::VerticalRoad)
+    last_boundary = right_boundary(road)
+    for _ in 2:road.numLanes
+        last_boundary = reduce_x(last_boundary, road.laneWidth)
+        draw_line!(last_boundary..., color=:blue, linestyle=:dash)
+    end
+end
+
 function drawRoad!(road::Road)
-    draw_road_boundaries(road)
-    draw_lane_markers(road)
+    draw_road_boundaries!(road)
+    draw_lane_markers!(road)
+end
+
+function drawRoad!(road::TwoWayHroad)
+    drawRoad!(road.L2Rroad)
+    drawRoad!(road.R2Lroad)
+end
+
+function drawRoad!(road::TwoWayVroad)
+    drawRoad!(road.B2Troad)
+    drawRoad!(road.T2Broad)
 end
 
 function initial_plot()
     axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
-    fig, abmstepper = abm_plot(
+    fig, abmstepper = abmplot(
         initialize();
         am=vehicle_marker,
         ac=:blue,
         axiskwargs=axiskwargs
     )
-    road = Road(:horizontal, (0, 50), (100, 50), 6, 5)
+    road = TwoWayVroad(50,0,100)
     drawRoad!(road)
     return fig
 end
