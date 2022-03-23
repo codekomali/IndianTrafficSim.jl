@@ -3,13 +3,21 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-module Environment
+#module Environment
 
-export initial_plot!
+## Scale
+## Typical lane width = 3.7 m
+## Current lane width = 50 units
+## ∴ 1 m = (50/3.7) ≈ 15.5 units
+
+export plot_environment!
 
 using Agents
 using InteractiveDynamics
-using CairoMakie
+using GLMakie
+
+include("Vehicles.jl")
+using .Vehicles: plot_vehicles!
 
 abstract type Road end
 
@@ -18,7 +26,7 @@ struct HorizontalRoad <: Road
     endPos::NTuple{2,Float64}
     numLanes::Int
     laneWidth::Float64
-    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=5)
+    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
         startPos = (startXpos, Ypos)
         endPos = (endXpos, Ypos)
         return new(startPos, endPos, numLanes, laneWidth)
@@ -30,7 +38,7 @@ struct VerticalRoad <: Road
     endPos::NTuple{2,Float64}
     numLanes::Int
     laneWidth::Float64
-    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=5)
+    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
         endPos = (Xpos, endYpos)
         return new(startPos, endPos, numLanes, laneWidth)
@@ -42,68 +50,36 @@ struct TwoWayHroad <: Road
     R2Lroad::HorizontalRoad
     medianWidth::Float64
     Ypos::Float64
-    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=5 )
-    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
-    L2RroadYpos = Ypos + widthBetweenRoads
-    R2LroadYpos = Ypos - widthBetweenRoads
-    L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
-    R2Lroad = HorizontalRoad(R2LroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
-    new(L2Rroad,R2Lroad,medianWidth,Ypos)
+    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=50)
+        widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
+        L2RroadYpos = Ypos + widthBetweenRoads
+        R2LroadYpos = Ypos - widthBetweenRoads
+        L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
+        R2Lroad = HorizontalRoad(R2LroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
+        new(L2Rroad, R2Lroad, medianWidth, Ypos)
     end
 end
 
-startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[2]
-endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[2]
+startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
+endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
     B2Troad::VerticalRoad
     medianWidth::Float64
     Xpos::Float64
-    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=5 )
-    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
-    T2BroadXpos = Xpos + widthBetweenRoads
-    B2TroadXpos = Xpos - widthBetweenRoads
-    T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
-    B2Troad = VerticalRoad(B2TroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
-    new(T2Broad,B2Troad,medianWidth, Xpos)
+    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=50)
+        widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
+        T2BroadXpos = Xpos + widthBetweenRoads
+        B2TroadXpos = Xpos - widthBetweenRoads
+        T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
+        B2Troad = VerticalRoad(B2TroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
+        new(T2Broad, B2Troad, medianWidth, Xpos)
     end
 end
 
-startYPos(road::TwoWayVroad) = road.T2Broad.startPos[1]
-endYPos(road::TwoWayVroad) = road.T2Broad.endPos[1]
-
-mutable struct VehicleAgent <: AbstractAgent
-    id::Int
-    pos::NTuple{2,Float64}
-    vel::NTuple{2,Float64}
-end
-
-function initialize(
-    n_vehicles=2,
-    extent=(100, 100),
-)
-    space2d = ContinuousSpace(extent)
-    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly)
-    vel = (1.0, 0.0)
-    x = 0.0
-    y = 42.0
-    for _ in 1:n_vehicles
-        add_agent!(
-            (x, y += 5.0),
-            model,
-            vel
-        )
-    end
-    return model
-end
-
-const vehicle_polygon = Polygon(Point2f[(0, 0), (2, 0), (2, 1), (0, 1)])
-
-function vehicle_marker(v::VehicleAgent)
-    φ = atan(v.vel[2], v.vel[1]) #+ π/2 + π
-    scale(rotate2D(vehicle_polygon, φ), 1)
-end
+startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
+endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
 
 function draw_line!(pos1, pos2; kwargs...)
     lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
@@ -128,9 +104,9 @@ left_boundary(road::VerticalRoad) = (
     road.endPos .- (half_width(road), 0)
 )
 
-reduce_y(line, val) = (line[1] .-(0,val), line[2] .- (0, val))
+reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
 
-reduce_x(line, val) = (line[1] .-(val,0), line[2] .- (val,0))
+reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
 
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
@@ -179,28 +155,43 @@ function drawRoad!(road::Road)
     draw_lane_markers!(road)
 end
 
+function drawMedian!(road::TwoWayHroad)
+    startPt = (startXPos(road), road.Ypos)
+    endPt = (endXPos(road), road.Ypos)
+    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+end
+
+function drawMedian!(road::TwoWayVroad)
+    startPt = (road.Xpos, startYPos(road))
+    endPt = (road.Xpos, endYPos(road))
+    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+end
+
 function drawRoad!(road::TwoWayHroad)
     drawRoad!(road.L2Rroad)
+    drawMedian!(road)
     drawRoad!(road.R2Lroad)
 end
 
 function drawRoad!(road::TwoWayVroad)
     drawRoad!(road.B2Troad)
+    drawMedian!(road)
     drawRoad!(road.T2Broad)
 end
 
-function initial_plot!()
-    axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
-    fig, _ = abmplot(
-        initialize();
-        am=vehicle_marker,
-        ac=:blue,
-        axiskwargs=axiskwargs
-    )
-    road = TwoWayVroad(50,0,100)
+function initialize_empty_figure(;figure=NamedTuple(),axis=NamedTuple())
+    fig = Figure(; figure...)
+    ax = fig[1,1][1,1] = Axis(fig; axis...)
+    return fig, ax
+end
+
+function plot_environment!()
+    fig=plot_vehicles!()
+    road = TwoWayHroad(2000, 0, 4000)
     drawRoad!(road)
     return fig
 end
 
+plot_environment!()
+#end
 
-end

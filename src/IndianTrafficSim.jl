@@ -2,8 +2,8 @@ module IndianTrafficSim
 
 include("Environment.jl")
 
-using .Environment: initial_plot!
+using .Environment: plot_environment!
 
-export initial_plot!
+export plot_environment!
 
 end
