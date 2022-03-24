@@ -179,12 +179,6 @@ function drawRoad!(road::TwoWayVroad)
     drawRoad!(road.T2Broad)
 end
 
-function initialize_empty_figure(;figure=NamedTuple(),axis=NamedTuple())
-    fig = Figure(; figure...)
-    ax = fig[1,1][1,1] = Axis(fig; axis...)
-    return fig, ax
-end
-
 function plot_environment!()
     fig=plot_vehicles!()
     road = TwoWayHroad(2000, 0, 4000)
@@ -193,5 +187,7 @@ function plot_environment!()
 end
 
 plot_environment!()
-#end
+
+
+
 
