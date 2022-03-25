@@ -1,4 +1,13 @@
-# IndianTrafficSim
+*Warning: This is an ongoing project. Keep visiting this site for more updates. The features listed below are wishlist and are being currently implemented. Upon first release, this warning will be removed. Meanwhile, If you plan to contribute, please contact author at code.komali@gmail.com*
+# IndianTrafficSim 
+Indian Traffic Simulator a traffic simulator built entirely in Julia. It is an effort to leverage the growing Julia ecosystem to support researchers working on Microscopic Traffic Simulation (Agent Based Traffic Simulation). It uses the following packages:
+* [Agents](https://juliadynamics.github.io/Agents.jl/stable/) for the ABM Simulation. 
+* [InteractiveDynamics](https://juliadynamics.github.io/InteractiveDynamics.jl/stable/) for ABM visualization, interaction and plotting.
+* [Makie](https://makie.juliaplots.org/stable/) is used for some custom visualization and plotting.
+
+![Typical Indian traffic junction](https://commons.wikimedia.org/wiki/File:Karol_Bagh,_2008_(14).JPG)
+
+Traffic in India and other developing nations are not the same as traffic in many Western countries. IndianTrafficSim while can be used for simulating traffic in western nations, it will include significant support for simulating Indian traffic including poor lane discipline, higher hetrogenity (two wheelers, tuk-tuks, etc.).
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/dev)
