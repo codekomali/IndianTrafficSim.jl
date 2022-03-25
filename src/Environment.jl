@@ -5,10 +5,10 @@
 
 #module Environment
 
-## Scale
-## Typical lane width = 3.7 m
-## Current lane width = 50 units
-## ∴ 1 m = (50/3.7) ≈ 15.5 units
+# Scale
+# Typical lane width = 3.7 m
+# Current lane width = 50 units
+# ∴ 1 m = (50/3.7) ≈ 15.5 units
 
 export plot_environment!
 
@@ -32,7 +32,14 @@ struct HorizontalRoad <: Road
         return new(startPos, endPos, numLanes, laneWidth)
     end
 end
-
+top_boundary(road::HorizontalRoad) = (
+    road.startPos .+ (0, half_width(road)),
+    road.endPos .+ (0, half_width(road))
+)
+bottom_boundary(road::HorizontalRoad) = (
+    road.startPos .- (0, half_width(road)),
+    road.endPos .- (0, half_width(road))
+)
 struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
@@ -45,6 +52,15 @@ struct VerticalRoad <: Road
     end
 end
 
+half_width(road::Road) = road.numLanes * road.laneWidth / 2
+right_boundary(road::VerticalRoad) = (
+    road.startPos .+ (half_width(road), 0),
+    road.endPos .+ (half_width(road), 0)
+)
+left_boundary(road::VerticalRoad) = (
+    road.startPos .- (half_width(road), 0),
+    road.endPos .- (half_width(road), 0)
+)
 struct TwoWayHroad <: Road
     L2Rroad::HorizontalRoad
     R2Lroad::HorizontalRoad
@@ -56,12 +72,15 @@ struct TwoWayHroad <: Road
         R2LroadYpos = Ypos - widthBetweenRoads
         L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
         R2Lroad = HorizontalRoad(R2LroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
-        new(L2Rroad, R2Lroad, medianWidth, Ypos)
+        return new(L2Rroad, R2Lroad, medianWidth, Ypos)
     end
 end
 
+numlanes(road::TwoWayHroad) = road.L2Rroad.numLanes
+lanewidth(road::TwoWayHroad) = road.L2Rroad.laneWidth
 startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
 endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
+
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
@@ -74,38 +93,41 @@ struct TwoWayVroad <: Road
         B2TroadXpos = Xpos - widthBetweenRoads
         T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
         B2Troad = VerticalRoad(B2TroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
-        new(T2Broad, B2Troad, medianWidth, Xpos)
+        return new(T2Broad, B2Troad, medianWidth, Xpos)
     end
 end
 
+numlanes(road::TwoWayVroad) = road.B2Troad.numLanes
+lanewidth(road::TwoWayVroad) = road.B2Troad.laneWidth
+totalWidth(road::Union{TwoWayHroad,TwoWayVroad}) = (2 * numlanes(road) * lanewidth(road)) + road.medianWidth
 startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
 endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
 
-function draw_line!(pos1, pos2; kwargs...)
-    lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
+struct TwoWayIntersectingRoads <: Road
+    leftRoadSeg::TwoWayHroad
+    rightRoadSeg::TwoWayHroad
+    topRoadSeg::TwoWayVroad
+    bottomRoadSeg::TwoWayVroad
+    function TwoWayIntersectingRoads(Ypos, startXpos, endXpos, Xpos, startYpos, endYpos; 
+        vnumlanes=2, 
+        vlanewidth = 50,
+        vmedianwidth =2,
+        hnumlanes=2,
+        hlanewidth = 50,
+        hmedianwidth = 2
+        )
+        horizontalWidth = (2 * vnumlanes * vlanewidth) + vmedianwidth
+        verticalWidth = (2 * hnumlanes * hlanewidth) + hmedianwidth
+        leftRoadSeg = TwoWayHroad(Ypos, startXpos, Xpos - horizontalWidth/2)
+        rightRoadSeg = TwoWayHroad(Ypos, Xpos + horizontalWidth/2,endXpos)
+        topRoadSeg = TwoWayVroad(Xpos, startYpos, Ypos + verticalWidth/2)
+        bottomRoadSeg = TwoWayVroad(Xpos, Ypos - verticalWidth/2, endYpos)
+        return new(leftRoadSeg, rightRoadSeg, topRoadSeg, bottomRoadSeg)
+    end 
 end
 
-half_width(road::Road) = road.numLanes * road.laneWidth / 2
-
-top_boundary(road::HorizontalRoad) = (
-    road.startPos .+ (0, half_width(road)),
-    road.endPos .+ (0, half_width(road))
-)
-right_boundary(road::VerticalRoad) = (
-    road.startPos .+ (half_width(road), 0),
-    road.endPos .+ (half_width(road), 0)
-)
-bottom_boundary(road::HorizontalRoad) = (
-    road.startPos .- (0, half_width(road)),
-    road.endPos .- (0, half_width(road))
-)
-left_boundary(road::VerticalRoad) = (
-    road.startPos .- (half_width(road), 0),
-    road.endPos .- (half_width(road), 0)
-)
-
+draw_line!(pos1, pos2; kwargs...)= lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
-
 reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
 
 function draw_road_boundaries!(road::HorizontalRoad)
@@ -179,12 +201,25 @@ function drawRoad!(road::TwoWayVroad)
     drawRoad!(road.T2Broad)
 end
 
+function drawRoad!(interRoad::TwoWayIntersectingRoads)
+    drawRoad!(interRoad.leftRoadSeg)
+    drawRoad!(interRoad.topRoadSeg)
+    drawRoad!(interRoad.rightRoadSeg)
+    drawRoad!(interRoad.bottomRoadSeg)
+end
+
 function plot_environment!()
     fig=plot_vehicles!()
-    road = TwoWayHroad(2000, 0, 4000)
-    drawRoad!(road)
+    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,1000,4000,0)
+    drawRoad!(intersectingRoads)
     return fig
 end
+
+#plot_environment!()
+
+#end
+
+# using .Environment
 
 plot_environment!()
 

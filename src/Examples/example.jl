@@ -5,6 +5,7 @@
 
 using IndianTrafficSim
 
+plot_vehicles!()
 fig = plot_environment!()
 
 fig

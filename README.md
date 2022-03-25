@@ -7,7 +7,7 @@ Indian Traffic Simulator a traffic simulator built entirely in Julia. It is an e
 
 ![Typical Indian traffic junction](https://upload.wikimedia.org/wikipedia/commons/a/a6/Karol_Bagh%2C_2008_%2814%29.JPG)
 
-Traffic in India and other developing nations are not the same as traffic in many Western countries. IndianTrafficSim while can be used for simulating traffic in western nations, it will include significant support for simulating Indian traffic including poor lane discipline, higher hetrogenity (two wheelers, tuk-tuks, etc.).
+Traffic in India and other developing nations are not the same as traffic in many Western countries. While IndianTrafficSim can be used for simulating traffic in western nations, it will include significant support for simulating Indian traffic including poor lane discipline, higher hetrogenity (two wheelers, tuk-tuks, etc.).
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/dev)
