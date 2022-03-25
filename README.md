@@ -5,7 +5,7 @@ Indian Traffic Simulator a traffic simulator built entirely in Julia. It is an e
 * [InteractiveDynamics](https://juliadynamics.github.io/InteractiveDynamics.jl/stable/) for ABM visualization, interaction and plotting.
 * [Makie](https://makie.juliaplots.org/stable/) is used for some custom visualization and plotting.
 
-![Typical Indian traffic junction](https://commons.wikimedia.org/wiki/File:Karol_Bagh,_2008_(14).JPG)
+![Typical Indian traffic junction](https://upload.wikimedia.org/wikipedia/commons/a/a6/Karol_Bagh%2C_2008_%2814%29.JPG)
 
 Traffic in India and other developing nations are not the same as traffic in many Western countries. IndianTrafficSim while can be used for simulating traffic in western nations, it will include significant support for simulating Indian traffic including poor lane discipline, higher hetrogenity (two wheelers, tuk-tuks, etc.).
 
