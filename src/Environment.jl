@@ -10,28 +10,39 @@
 # Current lane width = 50 units
 # ∴ 1 m = (50/3.7) ≈ 15.5 units
 
-export plot_environment!
+# export plot_environment!
 
 using Agents
 using InteractiveDynamics
 using GLMakie
 
-include("Vehicles.jl")
-using .Vehicles: plot_vehicles!
+# include("Vehicles.jl")
+# using .Vehicles: plot_vehicles!
 
 abstract type Road end
+
+half_width(road::Road) = road.numLanes * road.laneWidth / 2
+half_width(numLanes, laneWidth) = numLanes * laneWidth / 2
 
 struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
-    numLanes::Int
+    numLanes::Int64
     laneWidth::Float64
+    spawnPos::Vector{NTuple{2,Float64}}
     function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
         startPos = (startXpos, Ypos)
         endPos = (endXpos, Ypos)
-        return new(startPos, endPos, numLanes, laneWidth)
+        lanemid = (Ypos - half_width(numLanes, laneWidth)) + laneWidth/2
+        spawnPos = []
+        for _ in 1:numLanes
+            spawnPos = push!(spawnPos,(startXpos, lanemid))
+            lanemid += laneWidth
+        end
+        return new(startPos, endPos, numLanes, laneWidth, spawnPos)
     end
 end
+
 top_boundary(road::HorizontalRoad) = (
     road.startPos .+ (0, half_width(road)),
     road.endPos .+ (0, half_width(road))
@@ -43,16 +54,22 @@ bottom_boundary(road::HorizontalRoad) = (
 struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
-    numLanes::Int
+    numLanes::Int64
     laneWidth::Float64
+    spawnPos::Vector{NTuple{2,Float64}}
     function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
         endPos = (Xpos, endYpos)
-        return new(startPos, endPos, numLanes, laneWidth)
+        lanemid = (Xpos - half_width(numLanes, laneWidth)) + laneWidth/2
+        spawnPos = []
+        for _ in 1:numLanes
+            spawnPos = push!(spawnPos,(lanemid, startYpos))
+            lanemid += laneWidth
+        end 
+        return new(startPos, endPos, numLanes, laneWidth, spawnPos)
     end
 end
 
-half_width(road::Road) = road.numLanes * road.laneWidth / 2
 right_boundary(road::VerticalRoad) = (
     road.startPos .+ (half_width(road), 0),
     road.endPos .+ (half_width(road), 0)
@@ -80,7 +97,8 @@ numlanes(road::TwoWayHroad) = road.L2Rroad.numLanes
 lanewidth(road::TwoWayHroad) = road.L2Rroad.laneWidth
 startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
 endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
-
+leftSpawnPos(road::TwoWayHroad) = road.L2Rroad.spawnPos
+rightSpawnPos(road::TwoWayHroad) = road.R2Lroad.spawnPos
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
@@ -102,6 +120,8 @@ lanewidth(road::TwoWayVroad) = road.B2Troad.laneWidth
 totalWidth(road::Union{TwoWayHroad,TwoWayVroad}) = (2 * numlanes(road) * lanewidth(road)) + road.medianWidth
 startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
 endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
+topSpawnPos(road::TwoWayVroad) = road.T2Broad.spawnPos
+bottomSpawnPos(road::TwoWayVroad) = road.B2Troad.spawnPos
 
 struct TwoWayIntersectingRoads <: Road
     leftRoadSeg::TwoWayHroad
@@ -125,6 +145,11 @@ struct TwoWayIntersectingRoads <: Road
         return new(leftRoadSeg, rightRoadSeg, topRoadSeg, bottomRoadSeg)
     end 
 end
+
+leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
+rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
+topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
+bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
 
 draw_line!(pos1, pos2; kwargs...)= lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
@@ -208,12 +233,7 @@ function drawRoad!(interRoad::TwoWayIntersectingRoads)
     drawRoad!(interRoad.bottomRoadSeg)
 end
 
-function plot_environment!()
-    fig=plot_vehicles!()
-    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,1000,4000,0)
-    drawRoad!(intersectingRoads)
-    return fig
-end
+#intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
 
 #plot_environment!()
 
@@ -221,7 +241,7 @@ end
 
 # using .Environment
 
-plot_environment!()
+#plot_environment!()
 
 
 

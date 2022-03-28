@@ -3,13 +3,15 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-module Vehicles
+# module Vehicles
 
-export plot_vehicles!
+# export plot_vehicles!
 
 using Agents
 using InteractiveDynamics
 using GLMakie
+
+include("Environment.jl")
 
 mutable struct VehicleAgent <: AbstractAgent
     id::Int
@@ -21,16 +23,19 @@ function initialize(
     n_vehicles=2,
     extent=(4000, 4000))
     space2d = ContinuousSpace(extent)
-    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly)
-    vel = (1.0, 0.0)
-    x = 0.0
-    y = 0.0
-   add_agent!(
-            (x, y),
-            model,
-            vel
-        )
+    properties = Dict()
+    properties[:tick] = 0
+    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly;properties=properties)
+    add_vehicle!((0.0,2010.0), model)
     return model
+end
+
+function add_vehicle!(spawn_pos, model, initial_vel=(50,0))
+   add_agent!(
+            spawn_pos,
+            model,
+            initial_vel
+        )
 end
 
 # Average Car width 1.8 m
@@ -49,18 +54,35 @@ function vehicle_marker(v::VehicleAgent)
     rotate2D(vehicle_polygon, φ)
 end
 
+vehicle_step!(agent, model) = move_agent!(agent, model)
+
+function plot_environment!()
+    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+    drawRoad!(intersectingRoads)
+end
+
+function model_step!(model)
+    model.tick += 1
+    (model.tick % 10 ==0) && add_vehicle!((0.0,2050.0), model)
+    @show model.tick
+end
+
 function plot_vehicles!()
     axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
+    model = initialize()
     fig, _ = abmplot(
-        initialize();
+        model;
+        agent_step! = vehicle_step!,
+        model_step! = model_step!,
         am=vehicle_marker,
         ac=:green,
         axiskwargs=axiskwargs
     )
+    plot_environment!()
     return fig
 end
 
 plot_vehicles!()
 
-end
+# end
 
