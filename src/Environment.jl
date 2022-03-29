@@ -25,6 +25,15 @@ mutable struct Signal
     pos::NTuple{2, Float64}
     state::Symbol
     countDown::Int8
+    function Signal(pos, state)
+        if state === :red
+            return new(pos, state, SIGNAL_RED_TIME)
+        elseif state === :green
+            return new(pos, state, SIGNAL_GREEN_TIME)
+        else
+            return new(pos, state, SIGNAL_YELLOW_TIME)
+        end
+    end
 end
 
 const SIGNAL_MARGIN = 20.0
@@ -89,7 +98,7 @@ struct HorizontalRoad <: Road
             lanemid += laneWidth
         end
         signalPos = hsignalPos(Ypos, startXpos, endXpos,half_width(numLanes, laneWidth))
-        signal = Signal(signalPos,:red, 0) 
+        signal = Signal(signalPos,:red) 
         return new(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
     end
 end
@@ -118,7 +127,7 @@ struct VerticalRoad <: Road
             lanemid += laneWidth
         end
         signalPos = vsignalPos(Xpos, startYpos, endYpos,half_width(numLanes, laneWidth))
-        signal = Signal(signalPos,:red, 0)  
+        signal = Signal(signalPos,:red)  
         return new(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
     end
 end
