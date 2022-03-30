@@ -117,6 +117,7 @@ struct VerticalRoad <: Road
     numLanes::Int64
     laneWidth::Float64
     spawnPos::Vector{NTuple{2,Float64}}
+    signal::Signal
     function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
         endPos = (Xpos, endYpos)
