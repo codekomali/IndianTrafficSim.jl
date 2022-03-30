@@ -82,6 +82,7 @@ function plot_vehicles!()
     return fig
 end
 
+intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
 plot_vehicles!()
 
 # end
