@@ -19,8 +19,11 @@ using GLMakie
 # include("Vehicles.jl")
 # using .Vehicles: plot_vehicles!
 
+include("Utils.jl")
 include("Parameters.jl")
+
 import .Parameters as P
+import .Utils as U
 
 abstract type Road end
 
@@ -28,24 +31,24 @@ mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
     countDown::Int8
-    plot::Scatter
+    plot::Union{Scatter,Missing}
     active::Bool
     function Signal(pos, state)
         if state === :red
-            return new(pos, state, P.SIGNAL_RED_TIME, nothing, true)
+            return new(pos, state, P.SIGNAL_RED_TIME, missing, true)
         elseif state === :green
-            return new(pos, state, P.SIGNAL_GREEN_TIME, nothing, true)
+            return new(pos, state, P.SIGNAL_GREEN_TIME, missing, true)
         else
-            return new(pos, state, P.SIGNAL_YELLOW_TIME, nothing, true)
+            return new(pos, state, P.SIGNAL_YELLOW_TIME, missing, true)
         end
     end
 end
 
 function transitionState!(s::Signal)
-    if state === :red
+    if s.state === :red
         s.state = :green
         s.countDown = P.SIGNAL_GREEN_TIME
-    elseif state === :green
+    elseif s.state === :green
         s.state = :yellow
         s.countDown = P.SIGNAL_YELLOW_TIME
     else
@@ -192,8 +195,6 @@ endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
 topSpawnPos(road::TwoWayVroad) = road.T2Broad.spawnPos
 bottomSpawnPos(road::TwoWayVroad) = road.B2Troad.spawnPos
 
-
-
 struct TwoWayIntersectingRoads <: Road
     leftRoadSeg::TwoWayHroad
     rightRoadSeg::TwoWayHroad
@@ -218,7 +219,7 @@ struct TwoWayIntersectingRoads <: Road
 end
 
 roadsegs(road::TwoWayIntersectingRoads) = [road.leftRoadSeg, road.topRoadSeg, road.rightRoadSeg, road.bottomRoadSeg]
-signals(road::TwoWayIntersectingRoads) = 
+signals(road::TwoWayIntersectingRoads) = U.flatten(map(x->signals(x),roadsegs(road)))
 leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
 rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
@@ -257,11 +258,20 @@ function draw_road_boundaries!(road::VerticalRoad)
 end
 
 function draw_signal!(road::Road)
-    s = road.signal
+    draw_signal!(road.signal)
+    return nothing
+end
+
+function draw_signal!(road::Union{TwoWayHroad, TwoWayVroad, TwoWayIntersectingRoads})
+    foreach(draw_signal!, signals(road))
+    return nothing
+end
+
+function draw_signal!(s::Signal)
     s.active || return nothing
-    if s.plot === nothing
+    if s.plot === missing
         signalPt = Point2f(s.pos...)
-        _,_,plot = scatter!(signalPt, color=s.state, markersize=P.SIGNAL_MS)
+        plot = scatter!(signalPt, color=s.state, markersize=P.SIGNAL_MS)
         s.plot = plot
     else
         processSignalState!(s)
@@ -269,6 +279,7 @@ function draw_signal!(road::Road)
     end
     return nothing
 end
+
 
 function draw_lane_markers!(road::HorizontalRoad)
     last_boundary = top_boundary(road)

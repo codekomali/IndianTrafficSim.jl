@@ -25,6 +25,8 @@ function initialize(
     space2d = ContinuousSpace(extent)
     properties = Dict()
     properties[:tick] = 0
+    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+    properties[:env] = intersectingRoads
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly;properties=properties)
     add_vehicle!((0.0,2010.0), model)
     return model
@@ -56,14 +58,14 @@ end
 
 vehicle_step!(agent, model) = move_agent!(agent, model)
 
-function plot_environment!()
-    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
-    drawRoad!(intersectingRoads)
+function plot_environment!(model)
+    drawRoad!(model.env)
 end
 
 function model_step!(model)
     model.tick += 1
     (model.tick % 10 ==0) && add_vehicle!((0.0,2050.0), model)
+    draw_signal!(model.env)
     @show model.tick
 end
 
@@ -78,7 +80,7 @@ function plot_vehicles!()
         ac=:green,
         axiskwargs=axiskwargs
     )
-    plot_environment!()
+    plot_environment!(model)
     return fig
 end
 
