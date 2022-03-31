@@ -28,18 +28,20 @@ mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
     countDown::Int8
+    plot::Scatter
+    active::Bool
     function Signal(pos, state)
         if state === :red
-            return new(pos, state, P.SIGNAL_RED_TIME)
+            return new(pos, state, P.SIGNAL_RED_TIME, nothing, true)
         elseif state === :green
-            return new(pos, state, P.SIGNAL_GREEN_TIME)
+            return new(pos, state, P.SIGNAL_GREEN_TIME, nothing, true)
         else
-            return new(pos, state, P.SIGNAL_YELLOW_TIME)
+            return new(pos, state, P.SIGNAL_YELLOW_TIME, nothing, true)
         end
     end
 end
 
-function nextState(s::Signal)
+function transitionState!(s::Signal)
     if state === :red
         s.state = :green
         s.countDown = P.SIGNAL_GREEN_TIME
@@ -50,13 +52,15 @@ function nextState(s::Signal)
         s.state = :red
         s.countDown = P.SIGNAL_RED_TIME
     end
+    return nothing
 end
 
-function handleSignal(s::Signal)
+function processSignalState!(s::Signal)
     if s.countDown == 0
-        s.state = nextState(s)
+        transitionState!(s)
     end
     s.countDown -= 1
+    return nothing
 end
 
 half_width(road::Road) = road.numLanes * road.laneWidth / 2
@@ -156,6 +160,7 @@ struct TwoWayHroad <: Road
     end
 end
 
+signals(road::TwoWayHroad) = [road.L2Rroad.signal, road.R2Lroad.signal]
 numlanes(road::TwoWayHroad) = road.L2Rroad.numLanes
 lanewidth(road::TwoWayHroad) = road.L2Rroad.laneWidth
 startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
@@ -178,6 +183,7 @@ struct TwoWayVroad <: Road
     end
 end
 
+signals(road::TwoWayVroad) = [road.B2Troad.signal, road.T2Broad.signal]
 numlanes(road::TwoWayVroad) = road.B2Troad.numLanes
 lanewidth(road::TwoWayVroad) = road.B2Troad.laneWidth
 totalWidth(road::Union{TwoWayHroad,TwoWayVroad}) = (2 * numlanes(road) * lanewidth(road)) + road.medianWidth
@@ -211,6 +217,8 @@ struct TwoWayIntersectingRoads <: Road
     end
 end
 
+roadsegs(road::TwoWayIntersectingRoads) = [road.leftRoadSeg, road.topRoadSeg, road.rightRoadSeg, road.bottomRoadSeg]
+signals(road::TwoWayIntersectingRoads) = 
 leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
 rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
@@ -231,7 +239,6 @@ function draw_road_boundaries!(road::HorizontalRoad)
         color=:red,
         linewidth=2
     )
-    draw_signal!(road.signal)
     return nothing
 end
 
@@ -246,13 +253,20 @@ function draw_road_boundaries!(road::VerticalRoad)
         color=:red,
         linewidth=2
     )
-    draw_signal!(road.signal)
     return nothing
 end
 
-function draw_signal!(s::Signal)
-    signalPt = Point2f(s.pos...)
-    scatter!(signalPt, color=s.state, markersize=P.SIGNAL_MS)
+function draw_signal!(road::Road)
+    s = road.signal
+    s.active || return nothing
+    if s.plot === nothing
+        signalPt = Point2f(s.pos...)
+        _,_,plot = scatter!(signalPt, color=s.state, markersize=P.SIGNAL_MS)
+        s.plot = plot
+    else
+        processSignalState!(s)
+        s.plot.color = s.state
+    end
     return nothing
 end
 
@@ -277,6 +291,7 @@ end
 function drawRoad!(road::Road)
     draw_road_boundaries!(road)
     draw_lane_markers!(road)
+    draw_signal!(road)
     return nothing
 end
 
