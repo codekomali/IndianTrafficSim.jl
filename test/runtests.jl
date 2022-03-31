@@ -2,5 +2,6 @@ using IndianTrafficSim
 using Test
 
 @testset "IndianTrafficSim.jl" begin
-    # Write your tests here.
+    p = plot_environment!()
+    @test true == true
 end

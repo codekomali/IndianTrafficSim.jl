@@ -3,130 +3,231 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
+#module Environment
+
+# Scale
+# Typical lane width = 3.7 m
+# Current lane width = 50 units
+# ∴ 1 m = (50/3.7) ≈ 15.5 units
+
+# export plot_environment!
+
 using Agents
 using InteractiveDynamics
-using CairoMakie
+using GLMakie
+
+# include("Vehicles.jl")
+# using .Vehicles: plot_vehicles!
+
+include("Utils.jl")
+include("Parameters.jl")
+
+import .Parameters as P
+import .Utils as U
 
 abstract type Road end
+
+mutable struct Signal
+    pos::NTuple{2,Float64}
+    state::Symbol
+    countDown::Int8
+    plot::Union{Scatter,Missing}
+    active::Bool
+    function Signal(pos, state)
+        if state === :red
+            return new(pos, state, P.SIGNAL_RED_TIME, missing, true)
+        elseif state === :green
+            return new(pos, state, P.SIGNAL_GREEN_TIME, missing, true)
+        else
+            return new(pos, state, P.SIGNAL_YELLOW_TIME, missing, true)
+        end
+    end
+end
+
+function transitionState!(s::Signal)
+    if s.state === :red
+        s.state = :green
+        s.countDown = P.SIGNAL_GREEN_TIME
+    elseif s.state === :green
+        s.state = :yellow
+        s.countDown = P.SIGNAL_YELLOW_TIME
+    else
+        s.state = :red
+        s.countDown = P.SIGNAL_RED_TIME
+    end
+    return nothing
+end
+
+function processSignalState!(s::Signal)
+    if s.countDown == 0
+        transitionState!(s)
+    end
+    s.countDown -= 1
+    return nothing
+end
+
+half_width(road::Road) = road.numLanes * road.laneWidth / 2
+half_width(numLanes, laneWidth) = numLanes * laneWidth / 2
+
+
+function hsignalPos(Ypos, startXpos, endXpos, half_width)
+    yoffset = half_width + P.SIGNAL_POS_Y_MARGIN
+    if startXpos < endXpos
+        return (endXpos - P.SIGNAL_POS_X_MARGIN, Ypos + yoffset)
+    else
+        return (endXpos + P.SIGNAL_POS_X_MARGIN, Ypos - yoffset)
+    end
+end
+
+function vsignalPos(Xpos, startYpos, endYpos, half_width)
+    xoffset = half_width + P.SIGNAL_POS_X_MARGIN
+    if startYpos < endYpos
+        return (Xpos - xoffset, endYpos - P.SIGNAL_POS_Y_MARGIN)
+    else
+        return (Xpos + xoffset, endYpos + P.SIGNAL_POS_Y_MARGIN)
+    end
+end
 
 struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
-    numLanes::Int
+    numLanes::Int64
     laneWidth::Float64
-    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=5)
+    spawnPos::Vector{NTuple{2,Float64}}
+    signal::Signal
+    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
         startPos = (startXpos, Ypos)
         endPos = (endXpos, Ypos)
-        return new(startPos, endPos, numLanes, laneWidth)
+        lanemid = (Ypos - half_width(numLanes, laneWidth)) + laneWidth / 2
+        spawnPos = []
+        for _ in 1:numLanes
+            spawnPos = push!(spawnPos, (startXpos, lanemid))
+            lanemid += laneWidth
+        end
+        signalPos = hsignalPos(Ypos, startXpos, endXpos, half_width(numLanes, laneWidth))
+        signal = Signal(signalPos, :red)
+        return new(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
     end
 end
 
+top_boundary(road::HorizontalRoad) = (
+    road.startPos .+ (0, half_width(road)),
+    road.endPos .+ (0, half_width(road))
+)
+bottom_boundary(road::HorizontalRoad) = (
+    road.startPos .- (0, half_width(road)),
+    road.endPos .- (0, half_width(road))
+)
 struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
-    numLanes::Int
+    numLanes::Int64
     laneWidth::Float64
-    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=5)
+    spawnPos::Vector{NTuple{2,Float64}}
+    signal::Signal
+    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
         endPos = (Xpos, endYpos)
-        return new(startPos, endPos, numLanes, laneWidth)
+        lanemid = (Xpos - half_width(numLanes, laneWidth)) + laneWidth / 2
+        spawnPos = []
+        for _ in 1:numLanes
+            spawnPos = push!(spawnPos, (lanemid, startYpos))
+            lanemid += laneWidth
+        end
+        signalPos = vsignalPos(Xpos, startYpos, endYpos, half_width(numLanes, laneWidth))
+        signal = Signal(signalPos, :red)
+        return new(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
     end
 end
 
+right_boundary(road::VerticalRoad) = (
+    road.startPos .+ (half_width(road), 0),
+    road.endPos .+ (half_width(road), 0)
+)
+left_boundary(road::VerticalRoad) = (
+    road.startPos .- (half_width(road), 0),
+    road.endPos .- (half_width(road), 0)
+)
 struct TwoWayHroad <: Road
     L2Rroad::HorizontalRoad
     R2Lroad::HorizontalRoad
     medianWidth::Float64
     Ypos::Float64
-    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=5 )
-    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
-    L2RroadYpos = Ypos + widthBetweenRoads
-    R2LroadYpos = Ypos - widthBetweenRoads
-    L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
-    R2Lroad = HorizontalRoad(R2LroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
-    new(L2Rroad,R2Lroad,medianWidth,Ypos)
+    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=50)
+        widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
+        L2RroadYpos = Ypos + widthBetweenRoads
+        R2LroadYpos = Ypos - widthBetweenRoads
+        L2Rroad = HorizontalRoad(L2RroadYpos, startXpos, endXpos; numLanes=numLanes, laneWidth=laneWidth)
+        R2Lroad = HorizontalRoad(R2LroadYpos, endXpos, startXpos; numLanes=numLanes, laneWidth=laneWidth)
+        return new(L2Rroad, R2Lroad, medianWidth, Ypos)
     end
 end
 
-startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[2]
-endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[2]
+signals(road::TwoWayHroad) = [road.L2Rroad.signal, road.R2Lroad.signal]
+numlanes(road::TwoWayHroad) = road.L2Rroad.numLanes
+lanewidth(road::TwoWayHroad) = road.L2Rroad.laneWidth
+startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
+endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
+leftSpawnPos(road::TwoWayHroad) = road.L2Rroad.spawnPos
+rightSpawnPos(road::TwoWayHroad) = road.R2Lroad.spawnPos
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
     B2Troad::VerticalRoad
     medianWidth::Float64
     Xpos::Float64
-    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=5 )
-    widthBetweenRoads = (medianWidth + (numLanes * laneWidth))/2
-    T2BroadXpos = Xpos + widthBetweenRoads
-    B2TroadXpos = Xpos - widthBetweenRoads
-    T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
-    B2Troad = VerticalRoad(B2TroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
-    new(T2Broad,B2Troad,medianWidth, Xpos)
+    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=50)
+        widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
+        T2BroadXpos = Xpos + widthBetweenRoads
+        B2TroadXpos = Xpos - widthBetweenRoads
+        T2Broad = VerticalRoad(T2BroadXpos, startYpos, endYpos; numLanes=numLanes, laneWidth=laneWidth)
+        B2Troad = VerticalRoad(B2TroadXpos, endYpos, startYpos; numLanes=numLanes, laneWidth=laneWidth)
+        return new(T2Broad, B2Troad, medianWidth, Xpos)
     end
 end
 
-startYPos(road::TwoWayVroad) = road.T2Broad.startPos[1]
-endYPos(road::TwoWayVroad) = road.T2Broad.endPos[1]
+signals(road::TwoWayVroad) = [road.B2Troad.signal, road.T2Broad.signal]
+numlanes(road::TwoWayVroad) = road.B2Troad.numLanes
+lanewidth(road::TwoWayVroad) = road.B2Troad.laneWidth
+totalWidth(road::Union{TwoWayHroad,TwoWayVroad}) = (2 * numlanes(road) * lanewidth(road)) + road.medianWidth
+startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
+endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
+topSpawnPos(road::TwoWayVroad) = road.T2Broad.spawnPos
+bottomSpawnPos(road::TwoWayVroad) = road.B2Troad.spawnPos
 
-mutable struct VehicleAgent <: AbstractAgent
-    id::Int
-    pos::NTuple{2,Float64}
-    vel::NTuple{2,Float64}
-end
-
-function initialize(
-    n_vehicles=2,
-    extent=(100, 100),
-)
-    space2d = ContinuousSpace(extent)
-    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly)
-    vel = (1.0, 0.0)
-    x = 0.0
-    y = 42.0
-    for _ in 1:n_vehicles
-        add_agent!(
-            (x, y += 5.0),
-            model,
-            vel
-        )
+struct TwoWayIntersectingRoads <: Road
+    leftRoadSeg::TwoWayHroad
+    rightRoadSeg::TwoWayHroad
+    topRoadSeg::TwoWayVroad
+    bottomRoadSeg::TwoWayVroad
+    function TwoWayIntersectingRoads(Ypos, startXpos, endXpos, Xpos, startYpos, endYpos;
+        vnumlanes=2,
+        vlanewidth=50,
+        vmedianwidth=2,
+        hnumlanes=2,
+        hlanewidth=50,
+        hmedianwidth=2
+    )
+        horizontalWidth = (2 * vnumlanes * vlanewidth) + vmedianwidth
+        verticalWidth = (2 * hnumlanes * hlanewidth) + hmedianwidth
+        leftRoadSeg = TwoWayHroad(Ypos, startXpos, Xpos - horizontalWidth / 2)
+        rightRoadSeg = TwoWayHroad(Ypos, Xpos + horizontalWidth / 2, endXpos)
+        topRoadSeg = TwoWayVroad(Xpos, startYpos, Ypos + verticalWidth / 2)
+        bottomRoadSeg = TwoWayVroad(Xpos, Ypos - verticalWidth / 2, endYpos)
+        return new(leftRoadSeg, rightRoadSeg, topRoadSeg, bottomRoadSeg)
     end
-    return model
 end
 
-const vehicle_polygon = Polygon(Point2f[(0, 0), (2, 0), (2, 1), (0, 1)])
+roadsegs(road::TwoWayIntersectingRoads) = [road.leftRoadSeg, road.topRoadSeg, road.rightRoadSeg, road.bottomRoadSeg]
+signals(road::TwoWayIntersectingRoads) = U.flatten(map(x->signals(x),roadsegs(road)))
+leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
+rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
+topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
+bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
 
-function vehicle_marker(v::VehicleAgent)
-    φ = atan(v.vel[2], v.vel[1]) #+ π/2 + π
-    scale(rotate2D(vehicle_polygon, φ), 1)
-end
-
-function draw_line!(pos1, pos2; kwargs...)
-    lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
-end
-
-half_width(road::Road) = road.numLanes * road.laneWidth / 2
-
-top_boundary(road::HorizontalRoad) = (
-    road.startPos .+ (0, half_width(road)),
-    road.endPos .+ (0, half_width(road))
-)
-right_boundary(road::VerticalRoad) = (
-    road.startPos .+ (half_width(road), 0),
-    road.endPos .+ (half_width(road), 0)
-)
-bottom_boundary(road::HorizontalRoad) = (
-    road.startPos .- (0, half_width(road)),
-    road.endPos .- (0, half_width(road))
-)
-left_boundary(road::VerticalRoad) = (
-    road.startPos .- (half_width(road), 0),
-    road.endPos .- (half_width(road), 0)
-)
-
-reduce_y(line, val) = (line[1] .-(0,val), line[2] .- (0, val))
-
-reduce_x(line, val) = (line[1] .-(val,0), line[2] .- (val,0))
+draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
+reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
+reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
 
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
@@ -139,6 +240,7 @@ function draw_road_boundaries!(road::HorizontalRoad)
         color=:red,
         linewidth=2
     )
+    return nothing
 end
 
 function draw_road_boundaries!(road::VerticalRoad)
@@ -152,7 +254,32 @@ function draw_road_boundaries!(road::VerticalRoad)
         color=:red,
         linewidth=2
     )
+    return nothing
 end
+
+function draw_signal!(road::Road)
+    draw_signal!(road.signal)
+    return nothing
+end
+
+function draw_signal!(road::Union{TwoWayHroad, TwoWayVroad, TwoWayIntersectingRoads})
+    foreach(draw_signal!, signals(road))
+    return nothing
+end
+
+function draw_signal!(s::Signal)
+    s.active || return nothing
+    if s.plot === missing
+        signalPt = Point2f(s.pos...)
+        plot = scatter!(signalPt, color=s.state, markersize=P.SIGNAL_MS)
+        s.plot = plot
+    else
+        processSignalState!(s)
+        s.plot.color = s.state
+    end
+    return nothing
+end
+
 
 function draw_lane_markers!(road::HorizontalRoad)
     last_boundary = top_boundary(road)
@@ -160,6 +287,7 @@ function draw_lane_markers!(road::HorizontalRoad)
         last_boundary = reduce_y(last_boundary, road.laneWidth)
         draw_line!(last_boundary..., color=:blue, linestyle=:dash)
     end
+    return nothing
 end
 
 function draw_lane_markers!(road::VerticalRoad)
@@ -168,34 +296,54 @@ function draw_lane_markers!(road::VerticalRoad)
         last_boundary = reduce_x(last_boundary, road.laneWidth)
         draw_line!(last_boundary..., color=:blue, linestyle=:dash)
     end
+    return nothing
 end
 
 function drawRoad!(road::Road)
     draw_road_boundaries!(road)
     draw_lane_markers!(road)
+    draw_signal!(road)
+    return nothing
+end
+
+function drawMedian!(road::TwoWayHroad)
+    startPt = (startXPos(road), road.Ypos)
+    endPt = (endXPos(road), road.Ypos)
+    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+    return nothing
+end
+
+function drawMedian!(road::TwoWayVroad)
+    startPt = (road.Xpos, startYPos(road))
+    endPt = (road.Xpos, endYPos(road))
+    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+    return nothing
 end
 
 function drawRoad!(road::TwoWayHroad)
     drawRoad!(road.L2Rroad)
+    drawMedian!(road)
     drawRoad!(road.R2Lroad)
+    return nothing
 end
 
 function drawRoad!(road::TwoWayVroad)
     drawRoad!(road.B2Troad)
+    drawMedian!(road)
     drawRoad!(road.T2Broad)
+    return nothing
 end
 
-function initial_plot()
-    axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
-    fig, abmstepper = abmplot(
-        initialize();
-        am=vehicle_marker,
-        ac=:blue,
-        axiskwargs=axiskwargs
-    )
-    road = TwoWayVroad(50,0,100)
-    drawRoad!(road)
-    return fig
+function drawRoad!(interRoad::TwoWayIntersectingRoads)
+    drawRoad!(interRoad.leftRoadSeg)
+    drawRoad!(interRoad.topRoadSeg)
+    drawRoad!(interRoad.rightRoadSeg)
+    drawRoad!(interRoad.bottomRoadSeg)
+    return nothing
 end
 
-fig = initial_plot()
+
+
+
+
+
