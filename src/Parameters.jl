@@ -5,8 +5,8 @@
 
 module Parameters
 
-const SIGNAL_POS_X_MARGIN = 40.0
-const SIGNAL_POS_Y_MARGIN = 40.0
+const SIGNAL_POS_X_MARGIN = 80.0
+const SIGNAL_POS_Y_MARGIN = 80.0
 const SIGNAL_RED_TIME = 13
 const SIGNAL_GREEN_TIME = 10
 const SIGNAL_YELLOW_TIME = 2
@@ -27,5 +27,6 @@ const LANE_MARKER_LS = :dashed
 const MEDIAN_COLOR = :green
 const MEDIAN_LW = 2
 
+const PEDESTRIAN_WALKWAY_WIDTH = 28
 
 end

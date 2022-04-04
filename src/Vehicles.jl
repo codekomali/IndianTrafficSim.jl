@@ -59,7 +59,21 @@ end
 vehicle_step!(agent, model) = move_agent!(agent, model)
 
 function plot_environment!(model)
+    custom_setup_environment!(model.env)
     drawRoad!(model.env)
+end
+
+function custom_setup_environment!(twir::TwoWayIntersectingRoads)
+    # Make the signals on the edge inactive
+    twir.leftRoadSeg.R2Lroad.signal.active = false
+    twir.rightRoadSeg.L2Rroad.signal.active = false
+    twir.topRoadSeg.B2Troad.signal.active = false
+    twir.bottomRoadSeg.T2Broad.signal.active = false
+    # Alternate L2R and T2B road signals
+    setSignalState!(twir.leftRoadSeg.L2Rroad.signal, :green)
+    setSignalState!(twir.rightRoadSeg.R2Lroad.signal, :green)
+    setSignalState!(twir.topRoadSeg.T2Broad.signal, :red)
+    setSignalState!(twir.bottomRoadSeg.B2Troad.signal, :red)
 end
 
 function model_step!(model)
@@ -84,7 +98,7 @@ function plot_vehicles!()
     return fig
 end
 
-intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+#intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
 plot_vehicles!()
 
 # end
