@@ -15,6 +15,7 @@
 using Agents
 using InteractiveDynamics
 using GLMakie
+using LinearAlgebra
 
 # include("Vehicles.jl")
 # using .Vehicles: plot_vehicles!
@@ -30,7 +31,7 @@ abstract type Road end
 mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
-    countDown::Int8
+    countDown::Int64
     plot::Union{Scatter,Missing}
     active::Bool
     function Signal(pos, state)
@@ -103,12 +104,18 @@ function vsignalPos(Xpos, startYpos, endYpos, half_width)
     end
 end
 
+mutable struct SpawnPosition
+    pos::NTuple{2,Float64}
+    orient::NTuple{2,Float64}
+end
+
+
 struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
     numLanes::Int64
     laneWidth::Float64
-    spawnPos::Vector{NTuple{2,Float64}}
+    spawnPos::Vector{SpawnPosition}
     signal::Signal
     function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
         startPos = (startXpos, Ypos)
@@ -116,7 +123,8 @@ struct HorizontalRoad <: Road
         lanemid = (Ypos - half_width(numLanes, laneWidth)) + laneWidth / 2
         spawnPos = []
         for _ in 1:numLanes
-            spawnPos = push!(spawnPos, (startXpos, lanemid))
+            laneSpawnPos = SpawnPosition((startXpos, lanemid),orientation(startPos, endPos))
+            spawnPos = push!(spawnPos, laneSpawnPos)
             lanemid += laneWidth
         end
         signalPos = hsignalPos(Ypos, startXpos, endXpos, half_width(numLanes, laneWidth))
@@ -133,12 +141,21 @@ bottom_boundary(road::HorizontalRoad) = (
     road.startPos .- (0, half_width(road)),
     road.endPos .- (0, half_width(road))
 )
+
+# Move to util
+toVectorPos(tuple::NTuple{2,Float64})= [ round(x, digits=2) for x in tuple ]
+function toTuplePos(vector::Vector{Float64})
+    length(vector)==2 || return error("Position vector has more than 2 dims")
+    return NTuple{2, Float64}(round(i, digits=2) for i in vector)
+end
+orientation(startPos, endPos) = endPos .- startPos |> toVectorPos |> normalize |> toTuplePos
+
 struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
     numLanes::Int64
     laneWidth::Float64
-    spawnPos::Vector{NTuple{2,Float64}}
+    spawnPos::Vector{SpawnPosition}
     signal::Signal
     function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
@@ -146,7 +163,8 @@ struct VerticalRoad <: Road
         lanemid = (Xpos - half_width(numLanes, laneWidth)) + laneWidth / 2
         spawnPos = []
         for _ in 1:numLanes
-            spawnPos = push!(spawnPos, (lanemid, startYpos))
+            laneSpawnPos = SpawnPosition((lanemid, startYpos),orientation(startPos, endPos))
+            spawnPos = push!(spawnPos, laneSpawnPos)
             lanemid += laneWidth
         end
         signalPos = vsignalPos(Xpos, startYpos, endYpos, half_width(numLanes, laneWidth))
@@ -239,7 +257,8 @@ leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
 rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
 bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
-
+spawnPos(road::TwoWayIntersectingRoads) = vcat(leftSpawnPos(road), topSpawnPos(road), rightSpawnPos(road), bottomSpawnPos(road))
+#spawnPos(road::TwoWayIntersectingRoads) = vcat(leftSpawnPos(road), bottomSpawnPos(road))
 # Move to Utils
 draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))

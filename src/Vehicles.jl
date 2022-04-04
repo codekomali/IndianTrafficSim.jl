@@ -12,6 +12,9 @@ using InteractiveDynamics
 using GLMakie
 
 include("Environment.jl")
+include("Parameters.jl")
+
+import .Parameters as P
 
 mutable struct VehicleAgent <: AbstractAgent
     id::Int
@@ -21,18 +24,19 @@ end
 
 function initialize(
     n_vehicles=2,
-    extent=(4000, 4000))
+    extent=(4100, 4100))
     space2d = ContinuousSpace(extent)
     properties = Dict()
     properties[:tick] = 0
     intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
     properties[:env] = intersectingRoads
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly;properties=properties)
-    add_vehicle!((0.0,2010.0), model)
+    add_vehicle!((4000.0, 1924.0), model, (-0.1,0.0))
     return model
 end
 
-function add_vehicle!(spawn_pos, model, initial_vel=(50,0))
+
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED,0.0))
    add_agent!(
             spawn_pos,
             model,
@@ -56,7 +60,10 @@ function vehicle_marker(v::VehicleAgent)
     rotate2D(vehicle_polygon, φ)
 end
 
-vehicle_step!(agent, model) = move_agent!(agent, model)
+
+function vehicle_step!(agent, model)
+    move_agent!(agent, model)
+end
 
 function plot_environment!(model)
     custom_setup_environment!(model.env)
@@ -74,14 +81,30 @@ function custom_setup_environment!(twir::TwoWayIntersectingRoads)
     setSignalState!(twir.rightRoadSeg.R2Lroad.signal, :green)
     setSignalState!(twir.topRoadSeg.T2Broad.signal, :red)
     setSignalState!(twir.bottomRoadSeg.B2Troad.signal, :red)
+    mark_spawn_positions(twir)
+end
+
+function mark_spawn_positions(twir::TwoWayIntersectingRoads)
+    for sp in spawnPos(twir)
+        spawnPt = Point2f(sp.pos...)
+        scatter!(spawnPt, color=:green, markersize=P.SIGNAL_MS)
+    end
 end
 
 function model_step!(model)
     model.tick += 1
-    (model.tick % 10 ==0) && add_vehicle!((0.0,2050.0), model)
+    if (model.tick % 1400 ==0)
+        rnd_spawn_pos = rand(spawnPos(model.env))
+        @show rnd_spawn_pos
+        spawn_vel = rnd_spawn_pos.orient .* P.VEHICLE_INITIAL_SPEED
+        @show spawn_vel
+        add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
+    end
     draw_signal!(model.env)
     @show model.tick
 end
+
+
 
 function plot_vehicles!()
     axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
