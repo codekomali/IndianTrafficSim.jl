@@ -66,6 +66,21 @@ function processSignalState!(s::Signal)
     return nothing
 end
 
+function setSignalState!(s::Signal, state::Symbol)
+    if state === :green
+        s.state = :green
+        s.countDown = P.SIGNAL_GREEN_TIME
+    elseif state === :yellow
+        s.state = :yellow
+        s.countDown = P.SIGNAL_YELLOW_TIME
+    elseif state === :red
+        s.state = :red
+        s.countDown = P.SIGNAL_RED_TIME
+    else
+        error("Unrecognized signal state", s)
+    end
+end
+
 half_width(road::Road) = road.numLanes * road.laneWidth / 2
 half_width(numLanes, laneWidth) = numLanes * laneWidth / 2
 
@@ -225,9 +240,12 @@ rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
 bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
 
+# Move to Utils
 draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
+increase_y(line,val)= (line[1] .+ (0, val), line[2] .+ (0, val))
 reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
+increase_x(line, val) = (line[1] .+ (val, 0), line[2] .+ (val, 0))
 
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
@@ -299,10 +317,31 @@ function draw_lane_markers!(road::VerticalRoad)
     return nothing
 end
 
+function draw_pedestrian_walkway!(road::HorizontalRoad)
+    pedWay = nothing
+    if road.startPos[1] < road.endPos[1]
+        pedWay = increase_y(top_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    else
+        pedWay = reduce_y(bottom_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    end
+    draw_line!(pedWay..., color=:orange)
+end
+
+function draw_pedestrian_walkway!(road::VerticalRoad)
+    pedWay = nothing
+    if road.startPos[2] > road.endPos[2]
+        pedWay = increase_x(right_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    else
+        pedWay = reduce_x(left_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    end
+    draw_line!(pedWay..., color=:orange)
+end
+
 function drawRoad!(road::Road)
     draw_road_boundaries!(road)
     draw_lane_markers!(road)
     draw_signal!(road)
+    draw_pedestrian_walkway!(road)
     return nothing
 end
 
