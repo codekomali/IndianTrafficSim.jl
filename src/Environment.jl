@@ -110,6 +110,7 @@ mutable struct SpawnPosition
 end
 
 
+
 struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
@@ -203,6 +204,8 @@ startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
 endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
 leftSpawnPos(road::TwoWayHroad) = road.L2Rroad.spawnPos
 rightSpawnPos(road::TwoWayHroad) = road.R2Lroad.spawnPos
+top_boundary(road::TwoWayHroad) = top_boundary(road.L2Rroad)
+bottom_boundary(road::TwoWayHroad) = bottom_boundary(road.R2Lroad)
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
@@ -227,6 +230,8 @@ startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
 endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
 topSpawnPos(road::TwoWayVroad) = road.T2Broad.spawnPos
 bottomSpawnPos(road::TwoWayVroad) = road.B2Troad.spawnPos
+left_boundary(road::TwoWayVroad) = left_boundary(road.B2Troad)
+right_boundary(road::TwoWayVroad) = right_boundary(road.T2Broad)
 
 struct TwoWayIntersectingRoads <: Road
     leftRoadSeg::TwoWayHroad
@@ -258,13 +263,30 @@ rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
 bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
 spawnPos(road::TwoWayIntersectingRoads) = vcat(leftSpawnPos(road), topSpawnPos(road), rightSpawnPos(road), bottomSpawnPos(road))
-#spawnPos(road::TwoWayIntersectingRoads) = vcat(leftSpawnPos(road), bottomSpawnPos(road))
-# Move to Utils
-draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
+
+abstract type CrossPath end
+struct HcrossPath <: CrossPath
+    road::Union{HorizontalRoad,TwoWayHroad}
+    xpos::Float64
+end
+
+struct VcrossPath <: CrossPath
+    road::Union{VerticalRoad, TwoWayVroad}
+    ypos::Float64
+end
+
+
+# Possibly? Move to Utils
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
 increase_y(line,val)= (line[1] .+ (0, val), line[2] .+ (0, val))
 reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
 increase_x(line, val) = (line[1] .+ (val, 0), line[2] .+ (val, 0))
+
+
+#=
+FUNCTIONS FOR DRAWING ON THE PLOT
+=#
+draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
@@ -278,6 +300,36 @@ function draw_road_boundaries!(road::HorizontalRoad)
         linewidth=2
     )
     return nothing
+end
+
+function draw_cross_path!(cp::HcrossPath)
+    topy = top_boundary(cp.road)[1][2]
+    boty = bottom_boundary(cp.road)[1][2]
+    hw = P.CROSS_PATH_WIDTH /2
+    line1 = ((cp.xpos - hw, topy), (cp.xpos - hw, boty))
+    line2 = ((cp.xpos + hw, topy), (cp.xpos + hw, boty))
+    for line in [line1, line2]
+        draw_line!(
+            line...;
+            color=:darkorange,
+            linewidth=2
+        )
+    end
+end
+
+function draw_cross_path!(cp::VcrossPath)
+    leftx = left_boundary(cp.road)[1][1]
+    rightx = right_boundary(cp.road)[1][1]
+    hw = P.CROSS_PATH_WIDTH /2
+    line1 = ((leftx, cp.ypos - hw), (rightx, cp.ypos - hw))
+    line2 = ((leftx, cp.ypos + hw), (rightx, cp.ypos + hw))
+    for line in [line1, line2]
+        draw_line!(
+            line...;
+            color=:darkorange,
+            linewidth=2
+        )
+    end
 end
 
 function draw_road_boundaries!(road::VerticalRoad)
@@ -343,7 +395,7 @@ function draw_pedestrian_walkway!(road::HorizontalRoad)
     else
         pedWay = reduce_y(bottom_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
     end
-    draw_line!(pedWay..., color=:orange)
+    draw_line!(pedWay..., color=:black)
 end
 
 function draw_pedestrian_walkway!(road::VerticalRoad)
@@ -353,7 +405,7 @@ function draw_pedestrian_walkway!(road::VerticalRoad)
     else
         pedWay = reduce_x(left_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
     end
-    draw_line!(pedWay..., color=:orange)
+    draw_line!(pedWay..., color=:black)
 end
 
 function drawRoad!(road::Road)

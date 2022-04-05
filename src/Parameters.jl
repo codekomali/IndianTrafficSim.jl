@@ -33,7 +33,18 @@ const PEDESTRIAN_WALKWAY_WIDTH = 28
 # lets use milliseconds instead of seconds
 # for smooth animation we use 24 frames/sec ≈ 25 f/s
 # 25 frames take 1 sec (1000 msec) so 1 frame takes 1000/25 = 40 ms
+# ∴ 1 unit of time in our simulation = 40 milliseconds
 # if a car moves 2.5 m/1000ms then it moves (2.5/1000) * 40 = 0.1m in 40 ms
 const VEHICLE_INITIAL_SPEED = 0.1
+
+# Average Car width 1.8 m
+# ∴ Car width = 1.8 * 15.5 ≈ 27.9 units (rounded to 28)
+# Average Car length 4.5 m
+# ∴ Car length = 4.5 * 15.5 ≈ 68.75 units (rounded to 69)
+# source : https://measuringstuff.com/car-length-and-width-measured-in-feet/
+const VEHICLE_LENGTH = 69
+const VEHICLE_WIDTH = 28
+# Average CrossPath width 2M i.e 2 * 15.5 = 31
+const CROSS_PATH_WIDTH = 31
 
 end
