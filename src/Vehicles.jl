@@ -12,6 +12,9 @@ using InteractiveDynamics
 using GLMakie
 
 include("Environment.jl")
+include("Parameters.jl")
+
+import .Parameters as P
 
 mutable struct VehicleAgent <: AbstractAgent
     id::Int
@@ -21,18 +24,20 @@ end
 
 function initialize(
     n_vehicles=2,
-    extent=(4000, 4000))
+    extent=(4100, 4100))
     space2d = ContinuousSpace(extent)
     properties = Dict()
     properties[:tick] = 0
     intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
     properties[:env] = intersectingRoads
-    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly;properties=properties)
-    add_vehicle!((0.0,2010.0), model)
+    properties[:spawn_rate] = 1400
+    model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
+    add_vehicle!((4000.0, 1924.0), model, (-0.1,0.0))
     return model
 end
 
-function add_vehicle!(spawn_pos, model, initial_vel=(50,0))
+
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED,0.0))
    add_agent!(
             spawn_pos,
             model,
@@ -40,31 +45,82 @@ function add_vehicle!(spawn_pos, model, initial_vel=(50,0))
         )
 end
 
-# Average Car width 1.8 m
-# ∴ Car width = 1.8 * 15.5 ≈ 27.9 units (rounded to 28)
-# Average Car length 4.5 m
-# ∴ Car length = 4.5 * 15.5 ≈ 68.75 units (rounded to 69)
-# source : https://measuringstuff.com/car-length-and-width-measured-in-feet/
+
+
+# Generalize
+function vehicle_poly()
+    hw = P.VEHICLE_WIDTH/2
+    pt = Point2f[(0,-hw),(P.VEHICLE_LENGTH, -hw),(P.VEHICLE_LENGTH, hw), (0, hw)]
+    return Polygon(pt)
+end
 
 const vehicle_polygon = Polygon(
-    Point2f[(0, 0), (69, 0), (69, 28), (0, 28)]
+    Point2f[(0, 0), (P.VEHICLE_LENGTH, 0), (P.VEHICLE_LENGTH, P.VEHICLE_WIDTH), (0, P.VEHICLE_WIDTH)]
 )
 
 function vehicle_marker(v::VehicleAgent)
     φ = atan(v.vel[2], v.vel[1]) #+ π/2 + π
     #scale(rotate2D(vehicle_polygon, φ), 1)
-    rotate2D(vehicle_polygon, φ)
+    rotate2D(vehicle_poly(), φ)
 end
 
-vehicle_step!(agent, model) = move_agent!(agent, model)
+
+function vehicle_step!(agent, model)
+    move_agent!(agent, model)
+end
 
 function plot_environment!(model)
+    custom_setup_environment!(model.env)
     drawRoad!(model.env)
+end
+
+function custom_setup_environment!(twir::TwoWayIntersectingRoads)
+    # Make the signals on the edge inactive
+    twir.leftRoadSeg.R2Lroad.signal.active = false
+    twir.rightRoadSeg.L2Rroad.signal.active = false
+    twir.topRoadSeg.B2Troad.signal.active = false
+    twir.bottomRoadSeg.T2Broad.signal.active = false
+    # Alternate L2R and T2B road signals
+    setSignalState!(twir.leftRoadSeg.L2Rroad.signal, :green)
+    setSignalState!(twir.rightRoadSeg.R2Lroad.signal, :green)
+    setSignalState!(twir.topRoadSeg.T2Broad.signal, :red)
+    setSignalState!(twir.bottomRoadSeg.B2Troad.signal, :red)
+    foreach(draw_cross_path!,cross_paths(twir))
+end
+
+function cross_paths(twir)
+    cps = []
+    xpos = top_boundary(twir.leftRoadSeg)[2][1] - P.CROSS_PATH_WIDTH - 10
+    push!(cps, HcrossPath(twir.leftRoadSeg, xpos))
+    xpos = top_boundary(twir.rightRoadSeg)[1][1] + P.CROSS_PATH_WIDTH + 10
+    push!(cps, HcrossPath(twir.rightRoadSeg, xpos))
+    ypos = right_boundary(twir.topRoadSeg)[2][2] + P.CROSS_PATH_WIDTH + 10
+    push!(cps, VcrossPath(twir.topRoadSeg, ypos))
+    ypos = right_boundary(twir.bottomRoadSeg)[1][2] - P.CROSS_PATH_WIDTH - 10
+    push!(cps, VcrossPath(twir.bottomRoadSeg, ypos))
+    return cps
+end
+
+function mark_spawn_positions(twir::TwoWayIntersectingRoads)
+    for sp in spawnPos(twir)
+        spawnPt = Point2f(sp.pos...)
+        scatter!(spawnPt, color=:green, markersize=P.SIGNAL_MS)
+    end
+end
+
+function offset(sp::SpawnPosition)
 end
 
 function model_step!(model)
     model.tick += 1
-    (model.tick % 10 ==0) && add_vehicle!((0.0,2050.0), model)
+    if (model.tick % model.spawn_rate ==0)
+        rnd_spawn_pos = rand(spawnPos(model.env))
+        @show rnd_spawn_pos
+        spawn_vel = rnd_spawn_pos.orient .* P.VEHICLE_INITIAL_SPEED
+        @show spawn_vel
+        spawn_pos = offset(rnd_spawn_pos)
+        add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
+    end
     draw_signal!(model.env)
     @show model.tick
 end
@@ -72,11 +128,15 @@ end
 function plot_vehicles!()
     axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
     model = initialize()
+    params = Dict(
+        :spawn_rate => 100:100:5000,
+        )
     fig, _ = abmplot(
         model;
         agent_step! = vehicle_step!,
         model_step! = model_step!,
         am=vehicle_marker,
+        params = params,
         ac=:green,
         axiskwargs=axiskwargs
     )
@@ -84,8 +144,16 @@ function plot_vehicles!()
     return fig
 end
 
-intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
-plot_vehicles!()
+
+
+#intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+
+#a macro for easing development only. will be removed later
+macro pv()
+    quote
+        plot_vehicles!()
+    end
+end
 
 # end
 

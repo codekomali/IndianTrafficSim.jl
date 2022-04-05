@@ -15,6 +15,7 @@
 using Agents
 using InteractiveDynamics
 using GLMakie
+using LinearAlgebra
 
 # include("Vehicles.jl")
 # using .Vehicles: plot_vehicles!
@@ -30,7 +31,7 @@ abstract type Road end
 mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
-    countDown::Int8
+    countDown::Int64
     plot::Union{Scatter,Missing}
     active::Bool
     function Signal(pos, state)
@@ -66,6 +67,21 @@ function processSignalState!(s::Signal)
     return nothing
 end
 
+function setSignalState!(s::Signal, state::Symbol)
+    if state === :green
+        s.state = :green
+        s.countDown = P.SIGNAL_GREEN_TIME
+    elseif state === :yellow
+        s.state = :yellow
+        s.countDown = P.SIGNAL_YELLOW_TIME
+    elseif state === :red
+        s.state = :red
+        s.countDown = P.SIGNAL_RED_TIME
+    else
+        error("Unrecognized signal state", s)
+    end
+end
+
 half_width(road::Road) = road.numLanes * road.laneWidth / 2
 half_width(numLanes, laneWidth) = numLanes * laneWidth / 2
 
@@ -88,12 +104,19 @@ function vsignalPos(Xpos, startYpos, endYpos, half_width)
     end
 end
 
+mutable struct SpawnPosition
+    pos::NTuple{2,Float64}
+    orient::NTuple{2,Float64}
+end
+
+
+
 struct HorizontalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
     numLanes::Int64
     laneWidth::Float64
-    spawnPos::Vector{NTuple{2,Float64}}
+    spawnPos::Vector{SpawnPosition}
     signal::Signal
     function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
         startPos = (startXpos, Ypos)
@@ -101,7 +124,8 @@ struct HorizontalRoad <: Road
         lanemid = (Ypos - half_width(numLanes, laneWidth)) + laneWidth / 2
         spawnPos = []
         for _ in 1:numLanes
-            spawnPos = push!(spawnPos, (startXpos, lanemid))
+            laneSpawnPos = SpawnPosition((startXpos, lanemid),orientation(startPos, endPos))
+            spawnPos = push!(spawnPos, laneSpawnPos)
             lanemid += laneWidth
         end
         signalPos = hsignalPos(Ypos, startXpos, endXpos, half_width(numLanes, laneWidth))
@@ -118,12 +142,21 @@ bottom_boundary(road::HorizontalRoad) = (
     road.startPos .- (0, half_width(road)),
     road.endPos .- (0, half_width(road))
 )
+
+# Move to util
+toVectorPos(tuple::NTuple{2,Float64})= [ round(x, digits=2) for x in tuple ]
+function toTuplePos(vector::Vector{Float64})
+    length(vector)==2 || return error("Position vector has more than 2 dims")
+    return NTuple{2, Float64}(round(i, digits=2) for i in vector)
+end
+orientation(startPos, endPos) = endPos .- startPos |> toVectorPos |> normalize |> toTuplePos
+
 struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
     endPos::NTuple{2,Float64}
     numLanes::Int64
     laneWidth::Float64
-    spawnPos::Vector{NTuple{2,Float64}}
+    spawnPos::Vector{SpawnPosition}
     signal::Signal
     function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
         startPos = (Xpos, startYpos)
@@ -131,7 +164,8 @@ struct VerticalRoad <: Road
         lanemid = (Xpos - half_width(numLanes, laneWidth)) + laneWidth / 2
         spawnPos = []
         for _ in 1:numLanes
-            spawnPos = push!(spawnPos, (lanemid, startYpos))
+            laneSpawnPos = SpawnPosition((lanemid, startYpos),orientation(startPos, endPos))
+            spawnPos = push!(spawnPos, laneSpawnPos)
             lanemid += laneWidth
         end
         signalPos = vsignalPos(Xpos, startYpos, endYpos, half_width(numLanes, laneWidth))
@@ -170,6 +204,8 @@ startXPos(road::TwoWayHroad) = road.L2Rroad.startPos[1]
 endXPos(road::TwoWayHroad) = road.L2Rroad.endPos[1]
 leftSpawnPos(road::TwoWayHroad) = road.L2Rroad.spawnPos
 rightSpawnPos(road::TwoWayHroad) = road.R2Lroad.spawnPos
+top_boundary(road::TwoWayHroad) = top_boundary(road.L2Rroad)
+bottom_boundary(road::TwoWayHroad) = bottom_boundary(road.R2Lroad)
 
 struct TwoWayVroad <: Road
     T2Broad::VerticalRoad
@@ -194,6 +230,8 @@ startYPos(road::TwoWayVroad) = road.T2Broad.startPos[2]
 endYPos(road::TwoWayVroad) = road.T2Broad.endPos[2]
 topSpawnPos(road::TwoWayVroad) = road.T2Broad.spawnPos
 bottomSpawnPos(road::TwoWayVroad) = road.B2Troad.spawnPos
+left_boundary(road::TwoWayVroad) = left_boundary(road.B2Troad)
+right_boundary(road::TwoWayVroad) = right_boundary(road.T2Broad)
 
 struct TwoWayIntersectingRoads <: Road
     leftRoadSeg::TwoWayHroad
@@ -224,10 +262,31 @@ leftSpawnPos(road::TwoWayIntersectingRoads) = leftSpawnPos(road.leftRoadSeg)
 rightSpawnPos(road::TwoWayIntersectingRoads) = rightSpawnPos(road.rightRoadSeg)
 topSpawnPos(road::TwoWayIntersectingRoads) = topSpawnPos(road.topRoadSeg)
 bottomSpawnPos(road::TwoWayIntersectingRoads) = bottomSpawnPos(road.bottomRoadSeg)
+spawnPos(road::TwoWayIntersectingRoads) = vcat(leftSpawnPos(road), topSpawnPos(road), rightSpawnPos(road), bottomSpawnPos(road))
 
-draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
+abstract type CrossPath end
+struct HcrossPath <: CrossPath
+    road::Union{HorizontalRoad,TwoWayHroad}
+    xpos::Float64
+end
+
+struct VcrossPath <: CrossPath
+    road::Union{VerticalRoad, TwoWayVroad}
+    ypos::Float64
+end
+
+
+# Possibly? Move to Utils
 reduce_y(line, val) = (line[1] .- (0, val), line[2] .- (0, val))
+increase_y(line,val)= (line[1] .+ (0, val), line[2] .+ (0, val))
 reduce_x(line, val) = (line[1] .- (val, 0), line[2] .- (val, 0))
+increase_x(line, val) = (line[1] .+ (val, 0), line[2] .+ (val, 0))
+
+
+#=
+FUNCTIONS FOR DRAWING ON THE PLOT
+=#
+draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]]; kwargs...)
 
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
@@ -241,6 +300,36 @@ function draw_road_boundaries!(road::HorizontalRoad)
         linewidth=2
     )
     return nothing
+end
+
+function draw_cross_path!(cp::HcrossPath)
+    topy = top_boundary(cp.road)[1][2]
+    boty = bottom_boundary(cp.road)[1][2]
+    hw = P.CROSS_PATH_WIDTH /2
+    line1 = ((cp.xpos - hw, topy), (cp.xpos - hw, boty))
+    line2 = ((cp.xpos + hw, topy), (cp.xpos + hw, boty))
+    for line in [line1, line2]
+        draw_line!(
+            line...;
+            color=:darkorange,
+            linewidth=2
+        )
+    end
+end
+
+function draw_cross_path!(cp::VcrossPath)
+    leftx = left_boundary(cp.road)[1][1]
+    rightx = right_boundary(cp.road)[1][1]
+    hw = P.CROSS_PATH_WIDTH /2
+    line1 = ((leftx, cp.ypos - hw), (rightx, cp.ypos - hw))
+    line2 = ((leftx, cp.ypos + hw), (rightx, cp.ypos + hw))
+    for line in [line1, line2]
+        draw_line!(
+            line...;
+            color=:darkorange,
+            linewidth=2
+        )
+    end
 end
 
 function draw_road_boundaries!(road::VerticalRoad)
@@ -299,10 +388,31 @@ function draw_lane_markers!(road::VerticalRoad)
     return nothing
 end
 
+function draw_pedestrian_walkway!(road::HorizontalRoad)
+    pedWay = nothing
+    if road.startPos[1] < road.endPos[1]
+        pedWay = increase_y(top_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    else
+        pedWay = reduce_y(bottom_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    end
+    draw_line!(pedWay..., color=:black)
+end
+
+function draw_pedestrian_walkway!(road::VerticalRoad)
+    pedWay = nothing
+    if road.startPos[2] > road.endPos[2]
+        pedWay = increase_x(right_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    else
+        pedWay = reduce_x(left_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
+    end
+    draw_line!(pedWay..., color=:black)
+end
+
 function drawRoad!(road::Road)
     draw_road_boundaries!(road)
     draw_lane_markers!(road)
     draw_signal!(road)
+    draw_pedestrian_walkway!(road)
     return nothing
 end
 
