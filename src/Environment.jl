@@ -118,7 +118,7 @@ struct HorizontalRoad <: Road
     laneWidth::Float64
     spawnPos::Vector{SpawnPosition}
     signal::Signal
-    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=2, laneWidth=50)
+    function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWidth=P.H_LANE_WIDTH)
         startPos = (startXpos, Ypos)
         endPos = (endXpos, Ypos)
         lanemid = (Ypos - half_width(numLanes, laneWidth)) + laneWidth / 2
@@ -158,7 +158,7 @@ struct VerticalRoad <: Road
     laneWidth::Float64
     spawnPos::Vector{SpawnPosition}
     signal::Signal
-    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=2, laneWidth=50)
+    function VerticalRoad(Xpos, startYpos, endYpos; numLanes=P.V_NUM_LANES, laneWidth=P.V_LANE_WIDTH)
         startPos = (Xpos, startYpos)
         endPos = (Xpos, endYpos)
         lanemid = (Xpos - half_width(numLanes, laneWidth)) + laneWidth / 2
@@ -187,7 +187,7 @@ struct TwoWayHroad <: Road
     R2Lroad::HorizontalRoad
     medianWidth::Float64
     Ypos::Float64
-    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=2, numLanes=2, laneWidth=50)
+    function TwoWayHroad(Ypos, startXpos, endXpos; medianWidth=P.H_MEDIAN_WIDTH, numLanes=P.H_NUM_LANES, laneWidth=P.H_LANE_WIDTH)
         widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
         L2RroadYpos = Ypos + widthBetweenRoads
         R2LroadYpos = Ypos - widthBetweenRoads
@@ -212,7 +212,7 @@ struct TwoWayVroad <: Road
     B2Troad::VerticalRoad
     medianWidth::Float64
     Xpos::Float64
-    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=2, numLanes=2, laneWidth=50)
+    function TwoWayVroad(Xpos, startYpos, endYpos; medianWidth=P.V_MEDIAN_WIDTH, numLanes=P.V_NUM_LANES, laneWidth=P.V_LANE_WIDTH)
         widthBetweenRoads = (medianWidth + (numLanes * laneWidth)) / 2
         T2BroadXpos = Xpos + widthBetweenRoads
         B2TroadXpos = Xpos - widthBetweenRoads
@@ -239,12 +239,12 @@ struct TwoWayIntersectingRoads <: Road
     topRoadSeg::TwoWayVroad
     bottomRoadSeg::TwoWayVroad
     function TwoWayIntersectingRoads(Ypos, startXpos, endXpos, Xpos, startYpos, endYpos;
-        vnumlanes=2,
-        vlanewidth=50,
-        vmedianwidth=2,
-        hnumlanes=2,
-        hlanewidth=50,
-        hmedianwidth=2
+        vnumlanes=P.V_NUM_LANES,
+        vlanewidth=P.V_LANE_WIDTH,
+        vmedianwidth=P.V_MEDIAN_WIDTH,
+        hnumlanes=P.H_NUM_LANES,
+        hlanewidth=P.H_LANE_WIDTH,
+        hmedianwidth=P.H_MEDIAN_WIDTH
     )
         horizontalWidth = (2 * vnumlanes * vlanewidth) + vmedianwidth
         verticalWidth = (2 * hnumlanes * hlanewidth) + hmedianwidth
@@ -291,13 +291,13 @@ draw_line!(pos1, pos2; kwargs...) = lines!([pos1[1], pos2[1]], [pos1[2], pos2[2]
 function draw_road_boundaries!(road::HorizontalRoad)
     draw_line!(
         top_boundary(road)...;
-        color=:red,
-        linewidth=2
+        color=P.ROAD_BOUNDARY_COLOR,
+        linewidth=P.ROAD_BOUNDARY_LW
     )
     draw_line!(
         bottom_boundary(road)...;
-        color=:red,
-        linewidth=2
+        color=P.ROAD_BOUNDARY_COLOR,
+        linewidth=P.ROAD_BOUNDARY_LW
     )
     return nothing
 end
@@ -311,8 +311,8 @@ function draw_cross_path!(cp::HcrossPath)
     for line in [line1, line2]
         draw_line!(
             line...;
-            color=:darkorange,
-            linewidth=2
+            color=P.CP_COLOR,
+            linewidth=P.CP_LW
         )
     end
 end
@@ -326,8 +326,8 @@ function draw_cross_path!(cp::VcrossPath)
     for line in [line1, line2]
         draw_line!(
             line...;
-            color=:darkorange,
-            linewidth=2
+            color=P.CP_COLOR,
+            linewidth=P.CP_LW
         )
     end
 end
@@ -335,13 +335,13 @@ end
 function draw_road_boundaries!(road::VerticalRoad)
     draw_line!(
         right_boundary(road)...;
-        color=:red,
-        linewidth=2
+        color=P.ROAD_BOUNDARY_COLOR,
+        linewidth=P.ROAD_BOUNDARY_LW
     )
     draw_line!(
         left_boundary(road)...;
-        color=:red,
-        linewidth=2
+        color=P.ROAD_BOUNDARY_COLOR,
+        linewidth=P.ROAD_BOUNDARY_LW
     )
     return nothing
 end
@@ -374,7 +374,7 @@ function draw_lane_markers!(road::HorizontalRoad)
     last_boundary = top_boundary(road)
     for _ in 2:road.numLanes
         last_boundary = reduce_y(last_boundary, road.laneWidth)
-        draw_line!(last_boundary..., color=:blue, linestyle=:dash)
+        draw_line!(last_boundary..., color=P.LANE_MARKER_COLOR, linestyle=P.LANE_MARKER_LS)
     end
     return nothing
 end
@@ -383,7 +383,7 @@ function draw_lane_markers!(road::VerticalRoad)
     last_boundary = right_boundary(road)
     for _ in 2:road.numLanes
         last_boundary = reduce_x(last_boundary, road.laneWidth)
-        draw_line!(last_boundary..., color=:blue, linestyle=:dash)
+        draw_line!(last_boundary..., color=P.LANE_MARKER_COLOR, linestyle=P.LANE_MARKER_LS)
     end
     return nothing
 end
@@ -395,7 +395,7 @@ function draw_pedestrian_walkway!(road::HorizontalRoad)
     else
         pedWay = reduce_y(bottom_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
     end
-    draw_line!(pedWay..., color=:black)
+    draw_line!(pedWay..., color=P.PW_COLOR)
 end
 
 function draw_pedestrian_walkway!(road::VerticalRoad)
@@ -405,7 +405,7 @@ function draw_pedestrian_walkway!(road::VerticalRoad)
     else
         pedWay = reduce_x(left_boundary(road), P.PEDESTRIAN_WALKWAY_WIDTH)    
     end
-    draw_line!(pedWay..., color=:black)
+    draw_line!(pedWay..., color=P.PW_COLOR)
 end
 
 function drawRoad!(road::Road)
@@ -419,14 +419,14 @@ end
 function drawMedian!(road::TwoWayHroad)
     startPt = (startXPos(road), road.Ypos)
     endPt = (endXPos(road), road.Ypos)
-    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+    draw_line!(startPt, endPt, color=P.MEDIAN_COLOR, linewidth=road.medianWidth)
     return nothing
 end
 
 function drawMedian!(road::TwoWayVroad)
     startPt = (road.Xpos, startYPos(road))
     endPt = (road.Xpos, endYPos(road))
-    draw_line!(startPt, endPt, color=:green, linewidth=road.medianWidth)
+    draw_line!(startPt, endPt, color=P.MEDIAN_COLOR, linewidth=road.medianWidth)
     return nothing
 end
 
