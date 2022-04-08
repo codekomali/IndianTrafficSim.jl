@@ -24,7 +24,7 @@ end
 
 function initialize(
     n_vehicles=2,
-    extent=(4100, 4100))
+    extent=(P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
     space2d = ContinuousSpace(extent)
     properties = Dict()
     properties[:tick] = 0
@@ -54,13 +54,8 @@ function vehicle_poly()
     return Polygon(pt)
 end
 
-const vehicle_polygon = Polygon(
-    Point2f[(0, 0), (P.VEHICLE_LENGTH, 0), (P.VEHICLE_LENGTH, P.VEHICLE_WIDTH), (0, P.VEHICLE_WIDTH)]
-)
-
 function vehicle_marker(v::VehicleAgent)
-    φ = atan(v.vel[2], v.vel[1]) #+ π/2 + π
-    #scale(rotate2D(vehicle_polygon, φ), 1)
+    φ = atan(v.vel[2], v.vel[1])
     rotate2D(vehicle_poly(), φ)
 end
 
@@ -90,13 +85,13 @@ end
 
 function cross_paths(twir)
     cps = []
-    xpos = top_boundary(twir.leftRoadSeg)[2][1] - P.CROSS_PATH_WIDTH - 10
+    xpos = top_boundary(twir.leftRoadSeg)[2][1] - P.CROSS_PATH_WIDTH - P.CROSS_PATH_MARGIN
     push!(cps, HcrossPath(twir.leftRoadSeg, xpos))
-    xpos = top_boundary(twir.rightRoadSeg)[1][1] + P.CROSS_PATH_WIDTH + 10
+    xpos = top_boundary(twir.rightRoadSeg)[1][1] + P.CROSS_PATH_WIDTH + P.CROSS_PATH_MARGIN
     push!(cps, HcrossPath(twir.rightRoadSeg, xpos))
-    ypos = right_boundary(twir.topRoadSeg)[2][2] + P.CROSS_PATH_WIDTH + 10
+    ypos = right_boundary(twir.topRoadSeg)[2][2] + P.CROSS_PATH_WIDTH + P.CROSS_PATH_MARGIN
     push!(cps, VcrossPath(twir.topRoadSeg, ypos))
-    ypos = right_boundary(twir.bottomRoadSeg)[1][2] - P.CROSS_PATH_WIDTH - 10
+    ypos = right_boundary(twir.bottomRoadSeg)[1][2] - P.CROSS_PATH_WIDTH - P.CROSS_PATH_MARGIN
     push!(cps, VcrossPath(twir.bottomRoadSeg, ypos))
     return cps
 end
@@ -108,9 +103,6 @@ function mark_spawn_positions(twir::TwoWayIntersectingRoads)
     end
 end
 
-function offset(sp::SpawnPosition)
-end
-
 function model_step!(model)
     model.tick += 1
     if (model.tick % model.spawn_rate ==0)
@@ -118,7 +110,6 @@ function model_step!(model)
         @show rnd_spawn_pos
         spawn_vel = rnd_spawn_pos.orient .* P.VEHICLE_INITIAL_SPEED
         @show spawn_vel
-        spawn_pos = offset(rnd_spawn_pos)
         add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     end
     draw_signal!(model.env)
@@ -126,10 +117,10 @@ function model_step!(model)
 end
 
 function plot_vehicles!()
-    axiskwargs = (title="Indian Traffic Simulator", titlealign=:left) #title and position
+    axiskwargs = (title=P.PLOT_TITLE, titlealign=P.PLOT_TITLE_ALIGN)
     model = initialize()
     params = Dict(
-        :spawn_rate => 100:100:5000,
+        :spawn_rate => P.VSR_MIN:P.VSR_INC:P.VSR_MAX,
         )
     fig, _ = abmplot(
         model;
