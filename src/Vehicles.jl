@@ -13,6 +13,7 @@ using GLMakie
 
 include("Environment.jl")
 include("Parameters.jl")
+include("DrawEnvironment.jl")
 
 import .Parameters as P
 
@@ -22,35 +23,33 @@ mutable struct VehicleAgent <: AbstractAgent
     vel::NTuple{2,Float64}
 end
 
-function initialize(
-    n_vehicles=2,
-    extent=(P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
-    space2d = ContinuousSpace(extent)
+function initialize()
+    space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
     properties = Dict()
     properties[:tick] = 0
-    intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+    intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
     properties[:env] = intersectingRoads
     properties[:spawn_rate] = 1400
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
-    add_vehicle!((4000.0, 1924.0), model, (-0.1,0.0))
+    add_vehicle!((4000.0, 1924.0), model, (-0.1, 0.0))
     return model
 end
 
 
-function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED,0.0))
-   add_agent!(
-            spawn_pos,
-            model,
-            initial_vel
-        )
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0))
+    add_agent!(
+        spawn_pos,
+        model,
+        initial_vel
+    )
 end
 
 
 
 # Generalize
 function vehicle_poly()
-    hw = P.VEHICLE_WIDTH/2
-    pt = Point2f[(0,-hw),(P.VEHICLE_LENGTH, -hw),(P.VEHICLE_LENGTH, hw), (0, hw)]
+    hw = P.VEHICLE_WIDTH / 2
+    pt = Point2f[(0, -hw), (P.VEHICLE_LENGTH, -hw), (P.VEHICLE_LENGTH, hw), (0, hw)]
     return Polygon(pt)
 end
 
@@ -80,7 +79,7 @@ function custom_setup_environment!(twir::TwoWayIntersectingRoads)
     setSignalState!(twir.rightRoadSeg.R2Lroad.signal, :green)
     setSignalState!(twir.topRoadSeg.T2Broad.signal, :red)
     setSignalState!(twir.bottomRoadSeg.B2Troad.signal, :red)
-    foreach(draw_cross_path!,cross_paths(twir))
+    foreach(draw_cross_path!, cross_paths(twir))
 end
 
 function cross_paths(twir)
@@ -105,7 +104,7 @@ end
 
 function model_step!(model)
     model.tick += 1
-    if (model.tick % model.spawn_rate ==0)
+    if (model.tick % model.spawn_rate == 0)
         rnd_spawn_pos = rand(spawnPos(model.env))
         @show rnd_spawn_pos
         spawn_vel = rnd_spawn_pos.orient .* P.VEHICLE_INITIAL_SPEED
@@ -121,15 +120,15 @@ function plot_vehicles!()
     model = initialize()
     params = Dict(
         :spawn_rate => P.VSR_MIN:P.VSR_INC:P.VSR_MAX,
-        )
+    )
     fig, _ = abmplot(
         model;
-        agent_step! = vehicle_step!,
-        model_step! = model_step!,
+        (agent_step!)=vehicle_step!,
+        (model_step!)=model_step!,
         am=vehicle_marker,
-        params = params,
+        params=params,
         ac=:green,
-        axiskwargs=axiskwargs
+        axis=axiskwargs
     )
     plot_environment!(model)
     return fig
