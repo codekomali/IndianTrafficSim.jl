@@ -10,6 +10,7 @@
 using Agents
 using InteractiveDynamics
 using GLMakie
+using Observables
 
 include("Environment.jl")
 include("Parameters.jl")
@@ -27,6 +28,7 @@ function initialize()
     space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
     properties = Dict()
     properties[:tick] = 0
+    properties[:steptext] = Observable("Step: " * string(properties[:tick])) 
     intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
     properties[:env] = intersectingRoads
     properties[:spawn_rate] = 1400
@@ -104,6 +106,7 @@ end
 
 function model_step!(model)
     model.tick += 1
+    model.steptext[] = "Step: " * string(model.tick)
     if (model.tick % model.spawn_rate == 0)
         rnd_spawn_pos = rand(spawnPos(model.env))
         @show rnd_spawn_pos
@@ -130,6 +133,7 @@ function plot_vehicles!()
         ac=:green,
         axis=axiskwargs
     )
+    text!(model.steptext, position = (1000, 1000), textsize = 10)
     plot_environment!(model)
     return fig
 end
