@@ -126,8 +126,8 @@ function plot_vehicles!()
     )
     fig, _ = abmplot(
         model;
-        (agent_step!)=vehicle_step!,
-        (model_step!)=model_step!,
+        agent_step! = vehicle_step!,
+        model_step! = model_step!,
         am=vehicle_marker,
         params=params,
         ac=:green,
