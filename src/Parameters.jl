@@ -71,6 +71,6 @@ const CP_LW = 2
 const PW_COLOR = :black
 # plot title and alignment
 const PLOT_TITLE = "Indian Traffic Simulator"
-const PLOT_TITLE_ALIGN = :left
+const PLOT_TITLE_ALIGN = :center
 
 end
