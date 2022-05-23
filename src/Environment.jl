@@ -130,6 +130,8 @@ function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWi
     return HorizontalRoad(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
 end
 
+spawnPos(road::Road) = road.spawnPos
+
 top_boundary(road::HorizontalRoad) = (
     road.startPos .+ (0, half_width(road)),
     road.endPos .+ (0, half_width(road))

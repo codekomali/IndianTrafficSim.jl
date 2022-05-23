@@ -73,4 +73,6 @@ const PW_COLOR = :black
 const PLOT_TITLE = "Indian Traffic Simulator"
 const PLOT_TITLE_ALIGN = :center
 
+const R2L_ORIENTATION = (1.0, 0.0)
+
 end
