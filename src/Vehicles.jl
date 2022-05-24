@@ -15,37 +15,10 @@ using Observables
 include("Environment.jl")
 include("Parameters.jl")
 include("DrawEnvironment.jl")
+include("AgentTypes.jl")
 include("CarFollowingModels.jl")
 
 import .Parameters as P
-
-mutable struct VehicleAgent <: AbstractAgent
-    id::Int
-    pos::NTuple{2,Float64}
-    vel::NTuple{2,Float64}
-end
-
-orientation(agent::VehicleAgent) = U.orientation(agent.vel)
-isSameOrientation(agent1::VehicleAgent, agent2::VehicleAgent) = orientation(agent1) == orientation(agent2)
-
-function isSameLane(agent1::VehicleAgent, agent2::VehicleAgent) 
-    isSameOrientation(agent1, agent2) || return false
-    if orientation(agent1) == P.R2L_ORIENTATION
-        ## handle later for floating point equality
-        agent2.pos[2] == agent1.pos[2] # if y is same
-    else
-        false
-    end
-end
-
-function isPreceding(agent1::VehicleAgent, agent2::VehicleAgent)
-    isSameLane(agent1, agent2) || return false
-    if orientation(agent1) == P.R2L_ORIENTATION
-        agent2.pos[1] > agent1.pos[1] # if x is more
-    else
-        false
-    end
-end
 
 function t_add_vehicle!(model, horizontalRoad)
     add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (250,0), model)
@@ -60,7 +33,7 @@ function initialize()
     properties = Dict()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
-    properties[:debugtext] = Observable("") 
+    properties[:debugtext] = Observable("")
     #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
     horizontalRoad = HorizontalRoad(2000, 0, 4000)
     properties[:env] = horizontalRoad
@@ -116,12 +89,8 @@ end
 
 function vehicle_step!(agent, model)
     pv = preceding_vehicle(agent, model)
-    vel = agent.vel #used for resetting
-    if pv!==nothing
-        agent.vel = computeIDMvelocity(agent,pv,model)
-    end
+    agent.vel = computeIDMvelocity(agent,pv,model)
     move_agent!(agent, model)
-    # agent.vel = vel #resetting
 end
 
 function plot_environment!(model)
@@ -189,8 +158,8 @@ function model_step!(model)
 end
 
 function plot_vehicles!()
-    axiskwargs = (title=P.PLOT_TITLE, titlealign=P.PLOT_TITLE_ALIGN)
     model = initialize()
+    axiskwargs = (title=P.PLOT_TITLE, titlealign=P.PLOT_TITLE_ALIGN)
     params = Dict(
         :spawn_rate => P.VSR_MIN:P.VSR_INC:P.VSR_MAX,
     )
