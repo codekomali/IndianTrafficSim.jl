@@ -5,11 +5,6 @@
 
 #module Environment
 
-# Scale
-# Typical lane width = 3.7 m
-# Current lane width = 50 units
-# ∴ 1 m = (50/3.7) ≈ 15.5 units
-
 # export plot_environment!
 
 using Agents

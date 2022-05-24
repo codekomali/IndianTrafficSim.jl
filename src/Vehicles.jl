@@ -15,6 +15,7 @@ using Observables
 include("Environment.jl")
 include("Parameters.jl")
 include("DrawEnvironment.jl")
+include("CarFollowingModels.jl")
 
 import .Parameters as P
 
@@ -50,8 +51,8 @@ function t_add_vehicle!(model, horizontalRoad)
     add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (250,0), model)
     initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0) .* 1.5
     add_vehicle!(horizontalRoad.spawnPos[1].pos, model, initial_vel)
-    add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (500,0), model)
-    add_vehicle!(horizontalRoad.spawnPos[2].pos .+ (250,0), model)
+    # add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (500,0), model)
+    # add_vehicle!(horizontalRoad.spawnPos[2].pos, model)
 end
 
 function initialize()
@@ -116,11 +117,11 @@ end
 function vehicle_step!(agent, model)
     pv = preceding_vehicle(agent, model)
     vel = agent.vel #used for resetting
-    if pv!==nothing && edistance(agent, pv, model) < (P.VEHICLE_LENGTH + 10) #using as jam distance for now
-        agent.vel = agent.vel ./ 2
+    if pv!==nothing
+        agent.vel = computeIDMvelocity(agent,pv,model)
     end
     move_agent!(agent, model)
-    agent.vel = vel #resetting
+    # agent.vel = vel #resetting
 end
 
 function plot_environment!(model)

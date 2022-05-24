@@ -24,6 +24,8 @@ toVectorPos(tuple::NTuple{2,Float64})= [ round(x, digits=2) for x in tuple ]
 
 toVectorPos(tuple::NTuple{2,Int64})= [ x for x in tuple ]
 
+magnitude(tuple::NTuple{2,Float64}) = √(tuple[1]^2 + tuple[2]^2)
+
 function toTuplePos(vector::Vector{Float64})
     length(vector)==2 || return error("Position vector has more than 2 dims")
     return NTuple{2, Float64}(round(i, digits=2) for i in vector)
