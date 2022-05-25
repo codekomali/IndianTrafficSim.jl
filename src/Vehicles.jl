@@ -38,17 +38,20 @@ function initialize()
     horizontalRoad = HorizontalRoad(2000, 0, 4000)
     properties[:env] = horizontalRoad
     properties[:spawn_rate] = 1400
+    properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
     t_add_vehicle!(model, horizontalRoad)
     return model
 end
 
 
-function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0))
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0), tracked = false)
     add_agent!(
         spawn_pos,
         model,
-        initial_vel
+        initial_vel,
+        nothing, # during creation no preceding vehicle
+        tracked
     )
 end
 
@@ -65,14 +68,29 @@ function vehicle_marker(v::VehicleAgent)
 end
 
 function vehicle_color(v::VehicleAgent)
-    return v.id == 1 ? :green : :brown
+    return v.tracked ? :brown : :green
 end
 
-function nearest_agent(this_agent, others, model)
+function nearest_agent(this_agent::VehicleAgent, others, model)
     nearest_agent = nothing
     nearest_dist = Inf
     for o in others
         dist = edistance(this_agent,o, model)
+        if dist < nearest_dist
+            nearest_dist = dist
+            nearest_agent = o
+        end
+    end
+    return nearest_agent
+end
+
+function nearest_agent(pos::NTuple{2, Float64}, others, model)
+    nearest_agent = nothing
+    nearest_dist = Inf
+    for o in others
+        #Note: A potential to contribute to Agents.jl
+        # edistance should work for Pos<->Agent pair (currently not supported)
+        dist = edistance(pos,o.pos, model)
         if dist < nearest_dist
             nearest_dist = dist
             nearest_agent = o
@@ -88,8 +106,8 @@ function preceding_vehicle(this_agent, model)
 end
 
 function vehicle_step!(agent, model)
-    pv = preceding_vehicle(agent, model)
-    agent.vel = computeIDMvelocity(agent,pv,model)
+    agent.pv = preceding_vehicle(agent, model)
+    agent.vel = computeIDMvelocity(agent, model)
     move_agent!(agent, model)
 end
 
@@ -139,13 +157,23 @@ function mark_spawn_positions(twir::TwoWayIntersectingRoads)
 end
 
 function debug_info(model)
-    return "test " * string(model.tick)
+    id = model.tracked_agent
+    id != -1 || return "Not tracking"
+    agent = model[id]
+    pvdist = agent.pv !== nothing ? edistance(agent, agent.pv, model) : 0
+    """
+    ID = $(id)
+    Vel = $(agent.vel)
+    PV Dist = $(round(pvdist, digits=3))
+    """
 end
 
 function model_step!(model)
     model.tick += 1
     model.steptext[] = "Step: " * string(model.tick)
-    model.debugtext[] = debug_info(model)
+    dbinfo = debug_info(model)
+    model.debugtext[] = dbinfo
+    println(dbinfo)
     # if (model.tick % model.spawn_rate == 0)
     #     rnd_spawn_pos = rand(spawnPos(model.env))
     #     @show rnd_spawn_pos
@@ -154,7 +182,6 @@ function model_step!(model)
     #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     # end
     # draw_signal!(model.env)
-    @show model.tick
 end
 
 function plot_vehicles!()
@@ -163,7 +190,7 @@ function plot_vehicles!()
     params = Dict(
         :spawn_rate => P.VSR_MIN:P.VSR_INC:P.VSR_MAX,
     )
-    fig, _ = abmplot(
+    fig,ax, _ = abmplot(
         model;
         agent_step! = vehicle_step!,
         model_step! = model_step!,
@@ -175,7 +202,7 @@ function plot_vehicles!()
     text!(model.steptext, position = (1000, 1000), textsize = 10)
     text!(model.debugtext, position = (1000, 3000), textsize = 10)
     plot_environment!(model)
-    return (fig, model)
+    return (fig, ax, model)
 end
 
 
@@ -185,12 +212,59 @@ end
 #a macro for easing development only. will be removed later
 macro pv()
     quote
-        fig, model = plot_vehicles!()
+        fig, ax, model = plot_vehicles!()
         fig
     end
 end
 
-f,m = plot_vehicles!()
+f,a,m = plot_vehicles!()
+
+# on(events(f).mousebutton, priority = 0) do event
+#     if event.button == Mouse.left
+#         if event.action == Mouse.press
+#             pos = mouseposition(f.scene)
+#             println(pos)
+#         else
+#             # do something else when the mouse button is released
+#         end
+#     end
+#     # Do not consume the event
+#     return Consume(false)
+# end
+
+import GLMakie.register_interaction!
+
+clicked_pos(p::Point{2, Float32}) = (p[1],p[2]) .|> Float64
+
+function reset_tracking()
+    if m.tracked_agent != -1
+        m[m.tracked_agent].tracked = false
+        m.tracked_agent = -1
+    end
+end
+
+function track_agent(pos)
+    @show pos
+    reset_tracking()
+    ids = nearby_ids(pos,m,40, exact=false) |> collect
+    @show ids
+    agents = map(id -> m[id],ids)
+    n_agent = nearest_agent(pos, agents, m)
+    if n_agent !== nothing 
+        n_agent.tracked = true
+        m.tracked_agent = n_agent.id
+    end
+    println("tracking agent: ", m.tracked_agent)
+end
+
+register_interaction!(a, :my_interaction) do event::MouseEvent, axis
+    if event.type === MouseEventTypes.leftclick
+        #println("You clicked on the axis at datapos $(event.data)")
+        event.data |> clicked_pos |> track_agent
+    end
+end
+
+
 f
 # end
 

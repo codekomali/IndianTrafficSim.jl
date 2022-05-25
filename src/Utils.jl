@@ -34,4 +34,6 @@ end
 orientation(startPos, endPos) = endPos .- startPos |> toVectorPos |> normalize |> toTuplePos
 orientation(vel::NTuple{2,Float64}) = vel |> toVectorPos |> normalize |> toTuplePos
 
+euc_dist(p1,p2)=√( (p2[1]-p1[1])^2 + (p2[2]-p2[2])^2 ) 
+
 end

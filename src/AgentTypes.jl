@@ -7,6 +7,8 @@ mutable struct VehicleAgent <: AbstractAgent
     id::Int
     pos::NTuple{2,Float64}
     vel::NTuple{2,Float64}
+    pv:: Union{VehicleAgent, Nothing}
+    tracked::Bool
 end
 
 orientation(agent::VehicleAgent) = U.orientation(agent.vel)
