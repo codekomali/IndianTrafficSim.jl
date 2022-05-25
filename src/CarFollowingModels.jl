@@ -20,8 +20,8 @@ decTendency(this::VehicleAgent, prec::Nothing, model) = 0
 
 accelerationIDM(this, prec, model) = P.A_max * (accTendency(this) - decTendency(this,prec,model))
 
-function computeIDMvelocity(this, prec, model)
-    acc = accelerationIDM(this, prec, model)
+function computeIDMvelocity(this, model)
+    acc = accelerationIDM(this, this.pv, model)
     return this.vel .+ (orientation(this) .* acc)
 end
 
