@@ -35,12 +35,12 @@ function initialize()
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
     #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
-    horizontalRoad = HorizontalRoad(2000, 0, 4000)
-    properties[:env] = horizontalRoad
+    horizontalRoadL2R = HorizontalRoad(2000, 0, 4000)
+    properties[:env] = horizontalRoadL2R
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
-    t_add_vehicle!(model, horizontalRoad)
+    t_add_vehicle!(model, model.env)
     return model
 end
 
