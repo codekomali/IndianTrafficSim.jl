@@ -12,7 +12,9 @@ mutable struct VehicleAgent <: AbstractAgent
     debugInfo::String
 end
 
+#Orientation should be part of VehicleAgent
 orientation(agent::VehicleAgent) = U.orientation(agent.vel)
+
 isSameOrientation(agent1::VehicleAgent, agent2::VehicleAgent) = orientation(agent1) == orientation(agent2)
 
 function isSameLane(agent1::VehicleAgent, agent2::VehicleAgent) 
@@ -30,9 +32,9 @@ end
 
 function isPreceding(agent1::VehicleAgent, agent2::VehicleAgent)
     isSameLane(agent1, agent2) || return false
-    if orientation(agent1) == P.R2L_ORIENTATION
+    if orientation(agent1) == P.L2R_ORIENTATION
         agent2.pos[1] > agent1.pos[1] # if x is more
-    elseif orientation(agent1) == P.L2R_ORIENTATION
+    elseif orientation(agent1) == P.R2L_ORIENTATION
         agent2.pos[1] < agent1.pos[1] # if x is less
     elseif orientation(agent1) == P.B2T_ORIENTATION
         agent2.pos[2] > agent1.pos[2] # if y is more

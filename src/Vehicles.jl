@@ -36,11 +36,11 @@ function initialize()
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
     #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
-    #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
+    horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
     #horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
     #verticalRoadT2B = VerticalRoad(1690,3380,0)
-    verticalRoadB2T = VerticalRoad(1690,0,3380)
-    properties[:env] = verticalRoadB2T
+    #verticalRoadB2T = VerticalRoad(1690,0,3380)
+    properties[:env] = horizontalRoadL2R
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
@@ -118,6 +118,10 @@ function vehicle_step!(agent, model)
     agent.debugInfo = "" # resetting debugInfo after each step
     agent.pv = preceding_vehicle(agent, model)
     agent.vel = computeIDMvelocity(agent, model)
+    # only for testing
+    if(agent.id == 1 && model.tick >= 460) 
+        agent.vel = (0,0)
+    end
     move_agent!(agent, model)
 end
 
