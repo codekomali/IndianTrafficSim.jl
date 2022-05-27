@@ -9,6 +9,7 @@ mutable struct VehicleAgent <: AbstractAgent
     vel::NTuple{2,Float64}
     pv:: Union{VehicleAgent, Nothing}
     tracked::Bool
+    debugInfo::String
 end
 
 orientation(agent::VehicleAgent) = U.orientation(agent.vel)
@@ -31,4 +32,10 @@ function isPreceding(agent1::VehicleAgent, agent2::VehicleAgent)
     else
         false
     end
+end
+
+function addDebugInfo(agent::VehicleAgent, debugInfo)
+    P.DEBUG_MODE || return # only if debug mode is true
+    # we may restrict this later for only tracked vehicle(s)
+    agent.debugInfo *= (debugInfo * "\n")
 end

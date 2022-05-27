@@ -5,10 +5,24 @@
 
 
 vel(agent) = U.magnitude(agent.vel)
-Δv(this, prec) = vel(this) - vel(prec)
+function Δv(this, prec) 
+    dv = vel(this) - vel(prec)
+    addDebugInfo(this, "DV: $(dv)")
+    return dv
+end
 
-safeDistByVel(this) = P.S0_jam + (P.Safe_T * vel(this))
-safeDistByDeltaVel(this, prec) = (vel(this) * Δv(this,prec)) / (2 * √(P.A_max * P.B_dec))
+function safeDistByVel(this) 
+   sdv = P.S0_jam + (P.Safe_T * vel(this))
+   addDebugInfo(this, "SDV: $(sdv)")
+   return sdv
+end
+
+function safeDistByDeltaVel(this, prec) 
+    sddv = (vel(this) * Δv(this,prec)) / (2 * √(P.A_max * P.B_dec))
+    addDebugInfo(this, "SDDV: $(sddv)")
+    return sddv
+end
+
 desiredDistance(this, prec) = safeDistByVel(this) + safeDistByDeltaVel(this, prec)
 
 accTendency(this) =  1 - (vel(this)/ P.V0_pref)^4
@@ -18,10 +32,18 @@ decTendency(this::VehicleAgent, prec::VehicleAgent, model) = (desiredDistance(th
 # deceleration tendency on a free road (no preceding vehicle)
 decTendency(this::VehicleAgent, prec::Nothing, model) = 0
 
-accelerationIDM(this, prec, model) = P.A_max * (accTendency(this) - decTendency(this,prec,model))
+function accelerationIDM(this, prec, model) 
+    accT = accTendency(this)
+    addDebugInfo(this, "Acc Tend: $(accT)")
+    decT = decTendency(this, prec, model)
+    addDebugInfo(this, "Dec Tend: $(decT)")
+    return P.A_max * (accT - decT)
+end
 
 function computeIDMvelocity(this, model)
     acc = accelerationIDM(this, this.pv, model)
     return this.vel .+ (orientation(this) .* acc)
 end
+
+# Later implement improved version of IDM called (IIDM)
 

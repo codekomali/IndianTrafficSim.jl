@@ -102,4 +102,8 @@ const V0_pref = VEHICLE_INITIAL_SPEED
 # Jam distance
 const S0_jam = VEHICLE_LENGTH + 10
 
+# DEBUGGING PARAMETERS
+const DEBUG_MODE = true
+const AGENT_NEARBY_THRESH = 100
+
 end

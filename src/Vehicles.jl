@@ -51,7 +51,8 @@ function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.
         model,
         initial_vel,
         nothing, # during creation no preceding vehicle
-        tracked
+        tracked,
+        ""
     )
 end
 
@@ -71,12 +72,14 @@ function vehicle_color(v::VehicleAgent)
     return v.tracked ? :brown : :green
 end
 
-function nearest_agent(this_agent::VehicleAgent, others, model)
+function nearest_agent(this_agent::VehicleAgent, others, model; 
+    considerThresh = false,
+    nearbyThresh = P.AGENT_NEARBY_THRESH)
     nearest_agent = nothing
     nearest_dist = Inf
     for o in others
         dist = edistance(this_agent,o, model)
-        if dist < nearest_dist
+        if dist < nearest_dist && (!considerThresh || dist <= nearbyThresh)
             nearest_dist = dist
             nearest_agent = o
         end
@@ -84,14 +87,16 @@ function nearest_agent(this_agent::VehicleAgent, others, model)
     return nearest_agent
 end
 
-function nearest_agent(pos::NTuple{2, Float64}, others, model)
+function nearest_agent(pos::NTuple{2, Float64}, others, model;
+    considerThresh = false,
+    nearbyThresh = P.AGENT_NEARBY_THRESH)
     nearest_agent = nothing
     nearest_dist = Inf
     for o in others
         #Note: A potential to contribute to Agents.jl
         # edistance should work for Pos<->Agent pair (currently not supported)
         dist = edistance(pos,o.pos, model)
-        if dist < nearest_dist
+        if dist < nearest_dist && (!considerThresh || dist <= nearbyThresh)
             nearest_dist = dist
             nearest_agent = o
         end
@@ -106,6 +111,7 @@ function preceding_vehicle(this_agent, model)
 end
 
 function vehicle_step!(agent, model)
+    agent.debugInfo = "" # resetting debugInfo after each step
     agent.pv = preceding_vehicle(agent, model)
     agent.vel = computeIDMvelocity(agent, model)
     move_agent!(agent, model)
@@ -165,6 +171,7 @@ function debug_info(model)
     ID = $(id)
     Vel = $(agent.vel)
     PV Dist = $(round(pvdist, digits=3))
+    $(agent.debugInfo)
     """
 end
 
@@ -246,10 +253,13 @@ end
 function track_agent(pos)
     @show pos
     reset_tracking()
-    ids = nearby_ids(pos,m,40, exact=false) |> collect
-    @show ids
-    agents = map(id -> m[id],ids)
-    n_agent = nearest_agent(pos, agents, m)
+    # TODO: nearby_ids is acting unreliably, explore further
+    # and file an issue, till then use all_agents
+    # ids = nearby_ids(pos, m, 40, exact=false) |> collect
+    # @show ids
+    # agents = map(id -> m[id],ids)
+    agents = allagents(m) |> collect
+    n_agent = nearest_agent(pos, agents, m, considerThresh=true)
     if n_agent !== nothing 
         n_agent.tracked = true
         m.tracked_agent = n_agent.id
