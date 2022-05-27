@@ -4,7 +4,8 @@
 # https://opensource.org/licenses/MIT
 
 
-vel(agent) = U.magnitude(agent.vel)
+vel(agent) = U.magnitude(agent.vel) |> abs
+
 function Δv(this, prec) 
     dv = vel(this) - vel(prec)
     addDebugInfo(this, "DV: $(dv)")
@@ -23,7 +24,11 @@ function safeDistByDeltaVel(this, prec)
     return sddv
 end
 
-desiredDistance(this, prec) = safeDistByVel(this) + safeDistByDeltaVel(this, prec)
+function desiredDistance(this, prec) 
+    dd = safeDistByVel(this) + safeDistByDeltaVel(this, prec)
+    addDebugInfo(this, "DD: $(dd)")
+    return dd
+end
 
 accTendency(this) =  1 - (vel(this)/ P.V0_pref)^4
 

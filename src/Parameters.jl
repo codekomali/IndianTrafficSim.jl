@@ -81,7 +81,9 @@ const PLOT_TITLE = "Indian Traffic Simulator"
 const PLOT_TITLE_ALIGN = :center
 
 const R2L_ORIENTATION = (1.0, 0.0)
-
+const L2R_ORIENTATION = (-1.0, 0.0)
+const T2B_ORIENTATION = (0.0, -1.0)
+const B2T_ORIENTATION = (0.0, 1.0)
 # IDM Parameters from Treiber 2000 (congested traffic states)
 
 # 0.73 m/s^2

@@ -20,12 +20,13 @@ include("CarFollowingModels.jl")
 
 import .Parameters as P
 
-function t_add_vehicle!(model, horizontalRoad)
-    add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (250,0), model)
-    initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0) .* 1.5
-    add_vehicle!(horizontalRoad.spawnPos[1].pos, model, initial_vel)
-    # add_vehicle!(horizontalRoad.spawnPos[1].pos .+ (500,0), model)
-    # add_vehicle!(horizontalRoad.spawnPos[2].pos, model)
+function t_add_vehicle!(model, road)
+    spawn_vel = road.spawnPos[1].orient .* P.VEHICLE_INITIAL_SPEED
+    spawn_pos1 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 250)
+    add_vehicle!(spawn_pos1, model, spawn_vel)
+    initial_vel=spawn_vel .* 1.5
+    spawn_pos2 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 1)
+    add_vehicle!(spawn_pos2, model, initial_vel)
 end
 
 function initialize()
@@ -35,8 +36,11 @@ function initialize()
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
     #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
-    horizontalRoadL2R = HorizontalRoad(2000, 0, 4000)
-    properties[:env] = horizontalRoadL2R
+    #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
+    #horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
+    #verticalRoadT2B = VerticalRoad(1690,3380,0)
+    verticalRoadB2T = VerticalRoad(1690,0,3380)
+    properties[:env] = verticalRoadB2T
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)

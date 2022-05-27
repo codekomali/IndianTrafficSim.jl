@@ -17,9 +17,12 @@ isSameOrientation(agent1::VehicleAgent, agent2::VehicleAgent) = orientation(agen
 
 function isSameLane(agent1::VehicleAgent, agent2::VehicleAgent) 
     isSameOrientation(agent1, agent2) || return false
-    if orientation(agent1) == P.R2L_ORIENTATION
+    if orientation(agent1) == P.R2L_ORIENTATION || orientation(agent1) == P.L2R_ORIENTATION
         ## handle later for floating point equality
         agent2.pos[2] == agent1.pos[2] # if y is same
+    elseif orientation(agent1) == P.B2T_ORIENTATION || orientation(agent1) == P.T2B_ORIENTATION
+            ## handle later for floating point equality
+        agent2.pos[1] == agent1.pos[1] # if x is same
     else
         false
     end
@@ -29,6 +32,12 @@ function isPreceding(agent1::VehicleAgent, agent2::VehicleAgent)
     isSameLane(agent1, agent2) || return false
     if orientation(agent1) == P.R2L_ORIENTATION
         agent2.pos[1] > agent1.pos[1] # if x is more
+    elseif orientation(agent1) == P.L2R_ORIENTATION
+        agent2.pos[1] < agent1.pos[1] # if x is less
+    elseif orientation(agent1) == P.B2T_ORIENTATION
+        agent2.pos[2] > agent1.pos[2] # if y is more
+    elseif orientation(agent1) == P.T2B_ORIENTATION
+        agent2.pos[2] < agent1.pos[2] # if y is less
     else
         false
     end
