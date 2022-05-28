@@ -7,13 +7,17 @@ mutable struct VehicleAgent <: AbstractAgent
     id::Int
     pos::NTuple{2,Float64}
     vel::NTuple{2,Float64}
+    orient::NTuple{2,Float64}
     pv:: Union{VehicleAgent, Nothing}
+    ps:: Union{Signal, Nothing}
     tracked::Bool
     debugInfo::String
 end
 
 #Orientation should be part of VehicleAgent
-orientation(agent::VehicleAgent) = U.orientation(agent.vel)
+#orientation(agent::VehicleAgent) = U.orientation(agent.vel)
+#CLEAN UP
+orientation(agent::VehicleAgent) = agent.orient
 
 isSameOrientation(agent1::VehicleAgent, agent2::VehicleAgent) = orientation(agent1) == orientation(agent2)
 
@@ -40,6 +44,27 @@ function isPreceding(agent1::VehicleAgent, agent2::VehicleAgent)
         agent2.pos[2] > agent1.pos[2] # if y is more
     elseif orientation(agent1) == P.T2B_ORIENTATION
         agent2.pos[2] < agent1.pos[2] # if y is less
+    else
+        false
+    end
+end
+
+function isSameRoad(agent1::VehicleAgent, sig::Signal)
+    #TODO: currently we are only checking for orientation
+    # later, we need to check if its exactly the same road
+    orientation(agent1) == sig.orientation
+end
+
+function isPreceding(agent1::VehicleAgent, sig::Signal)
+    isSameRoad(agent1, sig)
+    if orientation(agent1) == P.L2R_ORIENTATION
+        sig.pos[1] > agent1.pos[1] # if x is more
+    elseif orientation(agent1) == P.R2L_ORIENTATION
+        sig.pos[1] < agent1.pos[1] # if x is less
+    elseif orientation(agent1) == P.B2T_ORIENTATION
+        sig.pos[2] > agent1.pos[2] # if y is more
+    elseif orientation(agent1) == P.T2B_ORIENTATION
+        sig.pos[2] < agent1.pos[2] # if y is less
     else
         false
     end

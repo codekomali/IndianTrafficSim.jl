@@ -23,18 +23,19 @@ abstract type Road end
 mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
+    orientation::NTuple{2, Float64}
     countDown::Int64
     plot::Union{Scatter,Missing}
     active::Bool
 end
 
-function Signal(pos, state)
+function Signal(pos, state, orient)
     if state === :red
-        return Signal(pos, state, P.SIGNAL_RED_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_RED_TIME, missing, true)
     elseif state === :green
-        return Signal(pos, state, P.SIGNAL_GREEN_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_GREEN_TIME, missing, true)
     else
-        return Signal(pos, state, P.SIGNAL_YELLOW_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_YELLOW_TIME, missing, true)
     end
 end
 
@@ -121,7 +122,8 @@ function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWi
         lanemid += laneWidth
     end
     signalPos = hsignalPos(Ypos, startXpos, endXpos, half_width(numLanes, laneWidth))
-    signal = Signal(signalPos, :red)
+    # TODO: Orientation can be a property of the road itself
+    signal = Signal(signalPos, :red, U.orientation(startPos, endPos))
     return HorizontalRoad(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
 end
 
@@ -135,6 +137,8 @@ bottom_boundary(road::HorizontalRoad) = (
     road.startPos .- (0, half_width(road)),
     road.endPos .- (0, half_width(road))
 )
+
+signals(road::Road) = [road.signal]
 
 mutable struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
@@ -156,7 +160,8 @@ function VerticalRoad(Xpos, startYpos, endYpos; numLanes=P.V_NUM_LANES, laneWidt
         lanemid += laneWidth
     end
     signalPos = vsignalPos(Xpos, startYpos, endYpos, half_width(numLanes, laneWidth))
-    signal = Signal(signalPos, :red)
+    # TODO: Orientation can be a property of the road itself
+    signal = Signal(signalPos, :red, U.orientation(startPos, endPos))
     return VerticalRoad(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
 end
 

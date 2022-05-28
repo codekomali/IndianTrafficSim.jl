@@ -22,11 +22,13 @@ import .Parameters as P
 
 function t_add_vehicle!(model, road)
     spawn_vel = road.spawnPos[1].orient .* P.VEHICLE_INITIAL_SPEED
-    spawn_pos1 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 250)
+    spawn_pos1 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 500)
     add_vehicle!(spawn_pos1, model, spawn_vel)
     initial_vel=spawn_vel .* 1.5
     spawn_pos2 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 1)
     add_vehicle!(spawn_pos2, model, initial_vel)
+    # moving the signal to center
+    road.signal.pos = (road.signal.pos[1] * 0.5, road.signal.pos[2])
 end
 
 function initialize()
@@ -54,9 +56,11 @@ function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.
         spawn_pos,
         model,
         initial_vel,
+        U.orientation(initial_vel),
         nothing, # during creation no preceding vehicle
+        nothing, # during creation no preceding signal
         tracked,
-        ""
+        "" # empty debug info
     )
 end
 
@@ -68,7 +72,7 @@ function vehicle_poly()
 end
 
 function vehicle_marker(v::VehicleAgent)
-    φ = atan(v.vel[2], v.vel[1]) 
+    φ = atan(v.orient[2], v.orient[1]) 
     rotate2D(vehicle_poly(), φ)
 end
 
@@ -108,20 +112,51 @@ function nearest_agent(pos::NTuple{2, Float64}, others, model;
     return nearest_agent
 end
 
+
+function nearest_signal(pos::NTuple{2, Float64}, signals, model;
+    considerThresh = false,
+    nearbyThresh = P.AGENT_NEARBY_THRESH)
+    nearest_sig = nothing
+    nearest_dist = Inf
+    for sig in signals
+        #Note: A potential to contribute to Agents.jl
+        # edistance should work for Pos<->Agent pair (currently not supported)
+        # TODO: later, may be edistance will work
+        dist = U.euc_dist(pos, sig.pos)
+        if dist < nearest_dist && (!considerThresh || dist <= nearbyThresh)
+            nearest_dist = dist
+            nearest_sig = sig
+        end
+    end
+    return nearest_sig
+end
+
+function nearest_signal(v::VehicleAgent, signals, model; kwargs...)
+    nearest_signal(v.pos, signals, model, kwargs...) 
+end
+
 function preceding_vehicle(this_agent, model)
     nearby_agentset = Set(nearby_agents(this_agent, model, 300.0)) #Magic number
     preceding_agentset = filter(other -> isPreceding(this_agent, other), nearby_agentset)
     nearest_agent(this_agent, preceding_agentset, model)
 end
 
+function nearby_signals(this_agent, model, dist_thresh=675) # ≈ 50 meters (magic number)
+    #TODO: better way is to import and specialize edistance from Agents.jl
+    filter(signal -> U.euc_dist(signal.pos, this_agent.pos) <= dist_thresh, signals(model.env))
+end
+
+function preceding_signal(this_agent, model)
+    signals = nearby_signals(this_agent, model, 300.0)
+    preceding_signal = filter(other -> isPreceding(this_agent, other), signals)
+    nearest_signal(this_agent, preceding_signal, model)
+end
+
 function vehicle_step!(agent, model)
     agent.debugInfo = "" # resetting debugInfo after each step
     agent.pv = preceding_vehicle(agent, model)
+    agent.ps = preceding_signal(agent, model)
     agent.vel = computeIDMvelocity(agent, model)
-    # only for testing
-    if(agent.id == 1 && model.tick >= 460) 
-        agent.vel = (0,0)
-    end
     move_agent!(agent, model)
 end
 
