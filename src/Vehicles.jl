@@ -209,11 +209,9 @@ function debug_info(model)
     id = model.tracked_agent
     id != -1 || return "Not tracking"
     agent = model[id]
-    pvdist = agent.pv !== nothing ? edistance(agent, agent.pv, model) : 0
     """
     ID = $(id)
     Vel = $(agent.vel)
-    PV Dist = $(round(pvdist, digits=3))
     $(agent.debugInfo)
     """
 end
@@ -231,10 +229,10 @@ function model_step!(model)
     #     @show spawn_vel
     #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     # end
-    if(model.tick == 1450)
-        model.env.signal.state = :green
-        draw_signal!(model.env)
-    end
+    # if(model.tick == 8000)
+    #     model.env.signal.state = :green
+    #     draw_signal!(model.env)
+    # end
     #draw_signal!(model.env)
 end
 

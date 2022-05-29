@@ -39,7 +39,6 @@ orientation(val::NTuple{2,Float64}) = val |> toVectorPos |> normalize |> toTuple
 import Base.isapprox
 # TODO: use isapprox where there is a orientation comparison
 isapprox(val1::NTuple{2,Float64}, val2::NTuple{2,Float64}) = isapprox(val1[1],val2[1]) && isapprox(val1[2], val2[2])
-
-euc_dist(p1,p2)=√( (p2[1]-p1[1])^2 + (p2[2]-p2[2])^2 ) 
+euc_dist(p1,p2)=√((p2[1]-p1[1])^2 + (p2[2]-p1[2])^2)
 
 end
