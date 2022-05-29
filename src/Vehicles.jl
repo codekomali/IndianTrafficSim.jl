@@ -231,7 +231,11 @@ function model_step!(model)
     #     @show spawn_vel
     #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     # end
-    # draw_signal!(model.env)
+    if(model.tick == 1450)
+        model.env.signal.state = :green
+        draw_signal!(model.env)
+    end
+    #draw_signal!(model.env)
 end
 
 function plot_vehicles!()

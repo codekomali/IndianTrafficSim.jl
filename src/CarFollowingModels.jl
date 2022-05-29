@@ -59,7 +59,9 @@ function computeIDMvelocity(this, model)
         acc = acc < ps_acc ? acc : ps_acc
     end
     res_vel = this.vel .+ (orientation(this) .* acc)
-    res_vel = U.orientation(res_vel) == orientation(this) ? res_vel : (0,0)
+    # This is just to ensure that we never just go in reverse
+    res_vel = isapprox(U.orientation(res_vel), orientation(this)) ? res_vel : (0,0)
+    addDebugInfo(this, "RES VEL: $(res_vel)")
     return res_vel
 end
 
