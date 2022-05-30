@@ -39,11 +39,11 @@ realdistance(this::VehicleAgent, prec::VehicleAgent) = U.euc_dist(this.pos, prec
 angle(p1, p2) = atan((p2[2] - p1[2]) / (p2[1]-p1[1])) 
 
 function realdistance(this::VehicleAgent, sig::Signal)
-    p1 = this.pos
-    p2 = sig.pos
-    θ = angle(p1,p2)
-    d = U.euc_dist(p1,p2) 
-    return (d * cos(θ)) - P.VEHICLE_LENGTH
+    if isapprox(this.orient, P.L2R_ORIENTATION) || isapprox(this.orient, P.R2L_ORIENTATION)
+        abs(sig.pos[1] - this.pos[1]) - P.VEHICLE_LENGTH
+    elseif isapprox(this.orient, P.T2B_ORIENTATION) || isapprox(this.orient, P.B2T_ORIENTATION)
+        abs(sig.pos[2] - this.pos[2]) - P.VEHICLE_LENGTH
+    end
 end
 
 # deceleration tendency when there is a preceding vehicle

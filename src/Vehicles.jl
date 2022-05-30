@@ -28,7 +28,7 @@ function t_add_vehicle!(model, road)
     spawn_pos2 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 1)
     add_vehicle!(spawn_pos2, model, initial_vel)
     # moving the signal to center
-    road.signal.pos = (road.signal.pos[1] * 0.5, road.signal.pos[2])
+    road.signal.pos = (road.signal.pos[1], road.signal.pos[2] * 0.5)
 end
 
 function initialize()
@@ -38,11 +38,11 @@ function initialize()
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
     #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
-    horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
+    #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
     #horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
     #verticalRoadT2B = VerticalRoad(1690,3380,0)
-    #verticalRoadB2T = VerticalRoad(1690,0,3380)
-    properties[:env] = horizontalRoadL2R
+    verticalRoadB2T = VerticalRoad(1690,0,3380)
+    properties[:env] = verticalRoadB2T
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
@@ -143,7 +143,7 @@ end
 
 function nearby_signals(this_agent, model, dist_thresh=675) # ≈ 50 meters (magic number)
     #TODO: better way is to import and specialize edistance from Agents.jl
-    filter(signal -> U.euc_dist(signal.pos, this_agent.pos) <= dist_thresh, signals(model.env))
+    filter(signal -> signal.active && realdistance(this_agent,signal) <= dist_thresh, signals(model.env))
 end
 
 function preceding_signal(this_agent, model)
@@ -221,6 +221,7 @@ function model_step!(model)
     model.steptext[] = "Step: " * string(model.tick)
     dbinfo = debug_info(model)
     model.debugtext[] = dbinfo
+    println("Tick: $(model.tick)")
     println(dbinfo)
     # if (model.tick % model.spawn_rate == 0)
     #     rnd_spawn_pos = rand(spawnPos(model.env))
@@ -229,10 +230,10 @@ function model_step!(model)
     #     @show spawn_vel
     #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     # end
-    # if(model.tick == 8000)
-    #     model.env.signal.state = :green
-    #     draw_signal!(model.env)
-    # end
+    if(model.tick == 2500)
+        model.env.signal.state = :green
+        draw_signal!(model.env)
+    end
     #draw_signal!(model.env)
 end
 
