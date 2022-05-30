@@ -56,7 +56,7 @@ function isSameRoad(agent1::VehicleAgent, sig::Signal)
 end
 
 function isPreceding(agent1::VehicleAgent, sig::Signal)
-    isSameRoad(agent1, sig)
+    isSameRoad(agent1, sig) || return false
     if orientation(agent1) == P.L2R_ORIENTATION
         sig.pos[1] > agent1.pos[1] # if x is more
     elseif orientation(agent1) == P.R2L_ORIENTATION
