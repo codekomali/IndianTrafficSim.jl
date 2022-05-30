@@ -20,16 +20,21 @@ include("CarFollowingModels.jl")
 
 import .Parameters as P
 
-function t_add_vehicle!(model, road)
-    spawn_vel = road.spawnPos[1].orient .* P.VEHICLE_INITIAL_SPEED
-    spawn_pos1 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 500)
+function t_add_vehicles!(model, spawnPos)
+    spawn_vel = spawnPos.orient .* P.VEHICLE_INITIAL_SPEED
+    spawn_pos1 = spawnPos.pos .+ (spawnPos.orient .* 500)
     add_vehicle!(spawn_pos1, model, spawn_vel)
     initial_vel=spawn_vel .* 1.5
-    spawn_pos2 = road.spawnPos[1].pos .+ (road.spawnPos[1].orient .* 1)
+    spawn_pos2 = spawnPos.pos .+ (spawnPos.orient .* 1)
     add_vehicle!(spawn_pos2, model, initial_vel)
-    # moving the signal to center
-    road.signal.pos = (road.signal.pos[1], road.signal.pos[2] * 0.5)
 end
+
+function t_add_vehicle!(model, road)
+    foreach(spawnPos(model.env)) do sp
+        t_add_vehicles!(model, sp)
+    end
+end
+
 
 function initialize()
     space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
@@ -37,12 +42,12 @@ function initialize()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
-    #intersectingRoads = TwoWayIntersectingRoads(2000, 0, 4000, 2000, 4000, 0)
+    intersectingRoads = TwoWayIntersectingRoads(3380/2, 0, 3380, 3380/2, 3380, 0)
     #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
     #horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
     #verticalRoadT2B = VerticalRoad(1690,3380,0)
-    verticalRoadB2T = VerticalRoad(1690,0,3380)
-    properties[:env] = verticalRoadB2T
+    #verticalRoadB2T = VerticalRoad(1690,0,3380)
+    properties[:env] = intersectingRoads
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
@@ -230,11 +235,11 @@ function model_step!(model)
     #     @show spawn_vel
     #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
     # end
-    if(model.tick == 2500)
-        model.env.signal.state = :green
-        draw_signal!(model.env)
-    end
-    #draw_signal!(model.env)
+    # if(model.tick == 2500)
+    #     model.env.signal.state = :green
+    #     draw_signal!(model.env)
+    # end
+    draw_signal!(model.env)
 end
 
 function plot_vehicles!()
@@ -258,9 +263,7 @@ function plot_vehicles!()
     return (fig, ax, model)
 end
 
-
-
-#intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
+# intersectingRoads = TwoWayIntersectingRoads(2000,0,4000,2000,4000,0)
 
 #a macro for easing development only. will be removed later
 macro pv()
