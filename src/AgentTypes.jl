@@ -7,6 +7,7 @@ mutable struct VehicleAgent <: AbstractAgent
     id::Int
     pos::NTuple{2,Float64}
     vel::NTuple{2,Float64}
+    type::Symbol
     orient::NTuple{2,Float64}
     pv:: Union{VehicleAgent, Nothing}
     ps:: Union{Signal, Nothing}
@@ -18,6 +19,62 @@ end
 #orientation(agent::VehicleAgent) = U.orientation(agent.vel)
 #CLEAN UP
 orientation(agent::VehicleAgent) = agent.orient
+
+initial_speed(agent::VehicleAgent) = initial_speed(agent.type)
+vehicle_width(agent::VehicleAgent) = vehicle_width(agent.type)
+vehicle_length(agent::VehicleAgent) = vehicle_length(agent.type)
+jam_dist_S0(agent::VehicleAgent) = jam_dist_S0(agent.type)
+safe_time_T(agent::VehicleAgent) = safe_time_T(agent.type)
+max_acc(agent::VehicleAgent) = max_acc(agent.type)
+comfort_dec(agent::VehicleAgent) = comfort_dec(agent.type)
+pref_vel_V0(agent::VehicleAgent) = pref_vel_V0(agent.type)
+color(agent::VehicleAgent) = color(agent.type)
+
+initial_speed(type::Symbol) =
+if type === :car
+    P.CAR_INITIAL_SPEED
+end
+
+vehicle_width(type::Symbol) =
+if type === :car 
+    P.CAR_WIDTH
+end
+
+vehicle_length(type::Symbol) =
+if type === :car 
+    P.CAR_LENGTH
+end
+
+jam_dist_S0(type::Symbol) =
+if type === :car 
+    P.CAR_S0_jam
+end
+
+safe_time_T(type::Symbol) =
+if type === :car 
+    P.CAR_Safe_T
+end
+
+max_acc(type::Symbol) =
+if type === :car 
+    P.CAR_A_max
+end
+
+comfort_dec(type::Symbol) =
+if type === :car 
+    P.CAR_B_dec
+end
+
+pref_vel_V0(type::Symbol) =
+if type === :car 
+    P.CAR_V0_pref
+end
+
+color(type::Symbol) =
+if type === :car 
+    P.CAR_COLOR
+end
+
 
 isSameOrientation(agent1::VehicleAgent, agent2::VehicleAgent) = orientation(agent1) == orientation(agent2)
 
@@ -68,6 +125,21 @@ function isPreceding(agent1::VehicleAgent, sig::Signal)
     else
         false
     end
+end
+
+function vehicle_poly(v::VehicleAgent)
+    hw = vehicle_width(v) / 2
+    pt = Point2f[(0, -hw), (vehicle_length(v), -hw), (vehicle_length(v), hw), (0, hw)]
+    return Polygon(pt)
+end
+
+function vehicle_marker(v::VehicleAgent)
+    φ = atan(v.orient[2], v.orient[1]) 
+    rotate2D(vehicle_poly(v), φ)
+end
+
+function vehicle_color(v::VehicleAgent)
+    return v.tracked ? :brown : color(v)
 end
 
 function addDebugInfo(agent::VehicleAgent, debugInfo)

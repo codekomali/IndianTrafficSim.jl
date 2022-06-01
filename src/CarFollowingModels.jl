@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-
+# TODO: Move 'vel' to appropriate place (also maybe rename to speed)
 vel(agent::VehicleAgent) = U.magnitude(agent.vel) |> abs
 vel(s::Signal) = 0
 
@@ -14,13 +14,13 @@ function Δv(this, prec)
 end
 
 function safeDistByVel(this) 
-   sdv = P.S0_jam + (P.Safe_T * vel(this))
+   sdv = jam_dist_S0(this) + (safe_time_T(this) * vel(this))
    addDebugInfo(this, "SDV: $(sdv)")
    return sdv
 end
 
 function safeDistByDeltaVel(this, prec) 
-    sddv = (vel(this) * Δv(this,prec)) / (2 * √(P.A_max * P.B_dec))
+    sddv = (vel(this) * Δv(this,prec)) / (2 * √(max_acc(this) * comfort_dec(this)))
     addDebugInfo(this, "SDDV: $(sddv)")
     return sddv
 end
@@ -31,13 +31,13 @@ function desiredDistance(this, prec)
     return dd
 end
 
-accTendency(this) =  1 - (vel(this)/ P.V0_pref)^4
+accTendency(this) =  1 - (vel(this)/ pref_vel_V0(this))^4
 
 # the real distance between vehicle and other things (subtracting vehicle distance)
-realdistance(this::VehicleAgent, prec::VehicleAgent) = U.euc_dist(this.pos, prec.pos) - P.VEHICLE_LENGTH
+# TODO: Change Name and move as appropriate
+realdistance(this::VehicleAgent, prec::VehicleAgent) = U.euc_dist(this.pos, prec.pos) - vehicle_length(this)
 
-angle(p1, p2) = atan((p2[2] - p1[2]) / (p2[1]-p1[1])) 
-
+# TODO: Change Name and move as appropriate
 function realdistance(this::VehicleAgent, sig::Signal)
     if isapprox(this.orient, P.L2R_ORIENTATION) || isapprox(this.orient, P.R2L_ORIENTATION)
         abs(sig.pos[1] - this.pos[1]) 
@@ -51,6 +51,7 @@ decTendency(this::VehicleAgent, prec::VehicleAgent) = (desiredDistance(this, pre
 # deceleration tendency on a free road (no preceding vehicle)
 decTendency(this::VehicleAgent, prec::Nothing) = 0
 # deceleration tendency when there is a preceding signal
+# TODO: Merge with decTendency definition of VehicleAgent (maybe Union)
 decTendency(this::VehicleAgent, prec::Signal) = (desiredDistance(this, prec) / realdistance(this, prec))^2
 
 function accelerationIDM(this, prec, model) 
@@ -58,7 +59,7 @@ function accelerationIDM(this, prec, model)
     addDebugInfo(this, "Acc Tend: $(accT)")
     decT = decTendency(this, prec)
     addDebugInfo(this, "Dec Tend: $(decT)")
-    return P.A_max * (accT - decT)
+    return max_acc(this) * (accT - decT)
 end
 
 function computeIDMvelocity(this, model)
@@ -67,6 +68,7 @@ function computeIDMvelocity(this, model)
     addDebugInfo(this, "PV Dist $(round(pvdist,digits=3))")
     acc = accelerationIDM(this, this.pv, model)
     addDebugInfo(this, "PV acc: $(acc)")
+    # TODO: CAN WE MOVE STATE TO PRECEDING_SIGNAL ITSELF and SIMPLIFY THIS
     if this.ps !== nothing && (this.ps.state == :red || this.ps.state == :yellow)
         addDebugInfo(this, "\nPSComp:")
         psdist = realdistance(this, this.ps)
@@ -83,5 +85,5 @@ function computeIDMvelocity(this, model)
 end
 
 
-# Later implement improved version of IDM called (IIDM)
+# TODO: Later implement improved version of IDM called (IIDM)
 

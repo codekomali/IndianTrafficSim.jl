@@ -21,7 +21,7 @@ include("CarFollowingModels.jl")
 import .Parameters as P
 
 function t_add_vehicles!(model, spawnPos)
-    spawn_vel = spawnPos.orient .* P.VEHICLE_INITIAL_SPEED
+    spawn_vel = spawnPos.orient .* initial_speed(:car)
     spawn_pos1 = spawnPos.pos .+ (spawnPos.orient .* 500)
     add_vehicle!(spawn_pos1, model, spawn_vel)
     initial_vel=spawn_vel .* 1.5
@@ -56,33 +56,18 @@ function initialize()
 end
 
 
-function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0), tracked = false)
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0), type= :car, tracked = false)
     add_agent!(
         spawn_pos,
         model,
         initial_vel,
+        type,
         U.orientation(initial_vel),
         nothing, # during creation no preceding vehicle
         nothing, # during creation no preceding signal
         tracked,
         "" # empty debug info
     )
-end
-
-# Generalize
-function vehicle_poly()
-    hw = P.VEHICLE_WIDTH / 2
-    pt = Point2f[(0, -hw), (P.VEHICLE_LENGTH, -hw), (P.VEHICLE_LENGTH, hw), (0, hw)]
-    return Polygon(pt)
-end
-
-function vehicle_marker(v::VehicleAgent)
-    φ = atan(v.orient[2], v.orient[1]) 
-    rotate2D(vehicle_poly(), φ)
-end
-
-function vehicle_color(v::VehicleAgent)
-    return v.tracked ? :brown : :green
 end
 
 function nearest_agent(this_agent::VehicleAgent, others, model; 
