@@ -21,12 +21,12 @@ include("CarFollowingModels.jl")
 import .Parameters as P
 
 function t_add_vehicles!(model, spawnPos)
-    spawn_vel = spawnPos.orient .* initial_speed(:car)
+    car_spawn_vel = spawnPos.orient .* initial_speed(:car)
     spawn_pos1 = spawnPos.pos .+ (spawnPos.orient .* 500)
-    add_vehicle!(spawn_pos1, model, spawn_vel)
-    initial_vel=spawn_vel .* 1.5
+    add_vehicle!(spawn_pos1, model, car_spawn_vel, :car)
+    truck_spawn_vel = spawnPos.orient .* initial_speed(:mc)
     spawn_pos2 = spawnPos.pos .+ (spawnPos.orient .* 1)
-    add_vehicle!(spawn_pos2, model, initial_vel)
+    add_vehicle!(spawn_pos2, model, truck_spawn_vel, :mc)
 end
 
 function t_add_vehicle!(model, road)

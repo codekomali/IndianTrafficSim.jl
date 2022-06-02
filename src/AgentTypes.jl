@@ -33,46 +33,82 @@ color(agent::VehicleAgent) = color(agent.type)
 initial_speed(type::Symbol) =
 if type === :car
     P.CAR_INITIAL_SPEED
+elseif type === :truck 
+    P.TRUCK_INITIAL_SPEED
+elseif type === :mc 
+    P.MC_INITIAL_SPEED
 end
 
 vehicle_width(type::Symbol) =
 if type === :car 
     P.CAR_WIDTH
+elseif type === :truck 
+    P.TRUCK_WIDTH
+elseif type === :mc 
+    P.MC_WIDTH
 end
 
 vehicle_length(type::Symbol) =
 if type === :car 
     P.CAR_LENGTH
+elseif type === :truck 
+    P.TRUCK_LENGTH
+elseif type === :mc 
+    P.MC_LENGTH
 end
 
 jam_dist_S0(type::Symbol) =
 if type === :car 
     P.CAR_S0_jam
+elseif type === :truck 
+    P.TRUCK_S0_jam
+elseif type === :mc 
+    P.MC_S0_jam
 end
 
 safe_time_T(type::Symbol) =
 if type === :car 
     P.CAR_Safe_T
+elseif type === :truck 
+    P.TRUCK_Safe_T
+elseif type === :mc 
+    P.MC_Safe_T
 end
 
 max_acc(type::Symbol) =
 if type === :car 
     P.CAR_A_max
+elseif type === :truck 
+    P.TRUCK_A_max
+elseif type === :mc 
+    P.MC_A_max
 end
 
 comfort_dec(type::Symbol) =
 if type === :car 
     P.CAR_B_dec
+elseif type === :truck 
+    P.TRUCK_B_dec
+elseif type === :mc 
+    P.MC_B_dec
 end
 
 pref_vel_V0(type::Symbol) =
 if type === :car 
     P.CAR_V0_pref
+elseif type === :truck 
+    P.TRUCK_V0_pref
+elseif type === :mc 
+    P.MC_V0_pref
 end
 
 color(type::Symbol) =
 if type === :car 
     P.CAR_COLOR
+elseif type === :truck 
+    P.TRUCK_COLOR
+elseif type === :mc 
+    P.MC_COLOR
 end
 
 
