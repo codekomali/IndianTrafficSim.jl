@@ -277,6 +277,8 @@ function vehicle_marker1(v::VehicleAgent)
     rotate2D(vehicle_poly1(), φ)
 end
 
+ac(a) = a.type == :car ? "#2b2b33" : a.type == :truck ? "#bf2642" : "#338c54"
+
 function plot_vehicles!()
     model = initialize()
     axiskwargs = (title=P.PLOT_TITLE, titlealign=P.PLOT_TITLE_ALIGN)
@@ -287,9 +289,11 @@ function plot_vehicles!()
         model;
         agent_step! = vehicle_step!,
         model_step! = model_step!,
-        am=vehicle_marker1,
+        am=vehicle_marker,
         params=params,
-        ac=:blue,
+        # TODO: File bug with InteractiveDynamics.jl team that function for ac is broken
+        # especially if you spawn new agents during model evolution
+        ac=:green,
         axis=axiskwargs
     )
     text!(model.steptext, position = (1000, 1000), textsize = 10)
@@ -323,7 +327,7 @@ f,a,m = plot_vehicles!()
 #     return Consume(false)
 # end
 
-# import GLMakie.register_interaction!
+import GLMakie.register_interaction!
 
 clicked_pos(p::Point{2, Float32}) = (p[1],p[2]) .|> Float64
 
@@ -351,12 +355,12 @@ function track_agent(pos)
     println("tracking agent: ", m.tracked_agent)
 end
 
-# register_interaction!(a, :my_interaction) do event::MouseEvent, axis
-#     if event.type === MouseEventTypes.leftclick
-#         #println("You clicked on the axis at datapos $(event.data)")
-#         event.data |> clicked_pos |> track_agent
-#     end
-# end
+register_interaction!(a, :my_interaction) do event::MouseEvent, axis
+    if event.type === MouseEventTypes.leftclick
+        #println("You clicked on the axis at datapos $(event.data)")
+        event.data |> clicked_pos |> track_agent
+    end
+end
 
 
 f

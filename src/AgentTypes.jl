@@ -105,11 +105,11 @@ end
 
 color(type::Symbol) =
 if type === :car 
-    P.CAR_COLOR
+    :blue #P.CAR_COLOR
 elseif type === :truck 
-    P.TRUCK_COLOR
+    :blue #P.TRUCK_COLOR
 elseif type === :mc 
-    P.MC_COLOR
+    :blue #P.MC_COLOR
 end
 
 
@@ -209,6 +209,7 @@ function vehicle_marker(v::VehicleAgent)
 end
 
 function vehicle_color(v::VehicleAgent)
+    @show v
     return v.tracked ? :brown : color(v)
 end
 
