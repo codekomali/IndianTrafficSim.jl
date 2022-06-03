@@ -5,6 +5,9 @@
 
 module Parameters
 
+include("Utils.jl")
+import .Utils as U
+
 # TIME SCALE INFORMATION - UNIT OF TIME
 # lets use milliseconds instead of seconds
 # for smooth animation we use 24 frames/sec ≈ 25 f/s
@@ -103,22 +106,29 @@ const CAR_INITIAL_SPEED = 1.35
 const CAR_LENGTH = 61
 const CAR_WIDTH = 24
 
-# IDM Parameters from Treiber 2000 (congested traffic states)
+# Value from Bokare and Maurya (2016) [As explained in Ramireddy et al 2020]
+# The maximum acceleration rate
+# for truck, three-wheeler, two-wheeler, diesel car and petrol
+# car were found to be 1.0, 0.64, 1.96, 2.23, and 2.87 m/s2 respectively
+# We assume petrol cars (so 2.87 m/s^2)
 
-# 0.73 m/s^2
-# 0.00000073 m/ms^2 ≈ 0.0000292 m/tick^2 ≈ 0.00039 units/tick^2 ≈ 0.0004 units/tick^2 
-const CAR_A_max = 0.0004
+const CAR_A_max = U.ms2_to_ut2(2.87)
 
 # 1.6 seconds
 # 1600 ms = 40 ticks
 const CAR_Safe_T = 40
 
-# 1.67 m/s^2
-# 0.00000167 m/ms^2 ≈ 0.0000668 m/tick^2 ≈ 0.0009 units/tick^2
-const CAR_B_dec = 0.0009
+# Source
+# TITLE: STUDY OF DECELERATION BEHAVIOUR OF DIFFERENT VEHICLE TYPES
+# Authors: Maurya and Bokare 2012
+# Car 1.62 m/s2
+const CAR_B_dec = U.ms2_to_ut2(1.62)
 
-# same as vehicle initial speed (10 km/h ≈ 2.5 m/s)
-const CAR_V0_pref = CAR_INITIAL_SPEED
+# SOURCE: Discharge Characteristics of Heterogeneous Traffic at Signalized Intersections 
+# AUTHORS: Maini and Khan 2000
+# Signal Clearing speed
+# Car 5.43 (smallest in table 5)
+const CAR_V0_pref = U.mps_to_upt(5.43)
 
 # Jam distance
 const CAR_S0_jam = CAR_LENGTH + 10
@@ -140,22 +150,28 @@ const TRUCK_INITIAL_SPEED = 1.35
 const TRUCK_LENGTH = 180
 const TRUCK_WIDTH = 33
 
-# IDM Parameters from Treiber 2000 (congested traffic states)
+# Value from Bokare and Maurya (2016) [As explained in Ramireddy et al 2020]
+# The maximum acceleration rate
+# for truck, three-wheeler, two-wheeler, diesel car and petrol
+# car were found to be 1.0, 0.64, 1.96, 2.23, and 2.87 m/s2 respectively
+const TRUCK_A_max = U.ms2_to_ut2(1)
 
-# 0.73 m/s^2
-# 0.00000073 m/ms^2 ≈ 0.0000292 m/tick^2 ≈ 0.00039 units/tick^2 ≈ 0.0004 units/tick^2 
-const TRUCK_A_max = 0.0004
 
 # 1.6 seconds
 # 1600 ms = 40 ticks
 const TRUCK_Safe_T = 40
 
-# 1.67 m/s^2
-# 0.00000167 m/ms^2 ≈ 0.0000668 m/tick^2 ≈ 0.0009 units/tick^2
-const TRUCK_B_dec = 0.0009
+# Source
+# TITLE: STUDY OF DECELERATION BEHAVIOUR OF DIFFERENT VEHICLE TYPES
+# Authors: Maurya and Bokare 2012
+# Truck 0.88 m/s2
+const TRUCK_B_dec = U.ms2_to_ut2(0.88)
 
-# same as vehicle initial speed (10 km/h ≈ 2.5 m/s)
-const TRUCK_V0_pref = TRUCK_INITIAL_SPEED
+# SOURCE: Discharge Characteristics of Heterogeneous Traffic at Signalized Intersections 
+# AUTHORS: Maini and Khan 2000
+# Signal Clearing speed
+# Truck/Bus 5.05 (smallest in table 5)
+const TRUCK_V0_pref = U.mps_to_upt(5.05)
 
 # Jam distance 
 const TRUCK_S0_jam = TRUCK_LENGTH + 10
@@ -165,7 +181,7 @@ const TRUCK_COLOR = :deepskyblue
 
 # MOTORCYCLE RELATED
 
-# 10 km/h ≈ 2.5 m/s
+# 10 km/h ≈ 2.5 m/s (2.77 m/s)
 # if a truck moves 2.5 m/1000ms then it moves (2.5/1000) * 40 = 0.1m in 40 ms = 0.1m/tick
 # 0.1m/tick = 0.1 * 13.5 = 1.35 units/tick
 const MC_INITIAL_SPEED = 1.35
@@ -182,20 +198,27 @@ const MC_WIDTH = 14
 
 # IDM Parameters from Treiber 2000 (congested traffic states)
 
-# 0.73 m/s^2
-# 0.00000073 m/ms^2 ≈ 0.0000292 m/tick^2 ≈ 0.00039 units/tick^2 ≈ 0.0004 units/tick^2 
-const MC_A_max = 0.0004
+# Value from Bokare and Maurya (2016) [As explained in Ramireddy et al 2020]
+# The maximum acceleration rate
+# for truck, three-wheeler, two-wheeler, diesel car and petrol
+# car were found to be 1.0, 0.64, 1.96, 2.23, and 2.87 m/s2 respectively
+const MC_A_max = U.ms2_to_ut2(1.96)
 
 # 1.6 seconds
 # 1600 ms = 40 ticks
 const MC_Safe_T = 40
 
-# 1.67 m/s^2
-# 0.00000167 m/ms^2 ≈ 0.0000668 m/tick^2 ≈ 0.0009 units/tick^2
-const MC_B_dec = 0.0009
+# Source
+# TITLE: STUDY OF DECELERATION BEHAVIOUR OF DIFFERENT VEHICLE TYPES
+# Authors: Maurya and Bokare 2012
+# MC 1.6 m/s2
+const MC_B_dec = U.ms2_to_ut2(1.6)
 
-# same as vehicle initial speed (10 km/h ≈ 2.5 m/s)
-const MC_V0_pref = MC_INITIAL_SPEED
+# SOURCE: Discharge Characteristics of Heterogeneous Traffic at Signalized Intersections 
+# AUTHORS: Maini and Khan 2000
+# Signal Clearing speed
+# MC 5.71 (smallest in table 5)
+const MC_V0_pref = U.mps_to_upt(5.71)
 
 # Jam distance 
 const MC_S0_jam = MC_LENGTH + 10

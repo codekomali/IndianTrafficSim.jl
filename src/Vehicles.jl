@@ -24,12 +24,12 @@ function t_add_vehicles!(model, spawnPos)
     car_spawn_vel = spawnPos.orient .* initial_speed(:car)
     spawn_pos1 = spawnPos.pos .+ (spawnPos.orient .* 500)
     add_vehicle!(spawn_pos1, model, car_spawn_vel, :car)
-    truck_spawn_vel = spawnPos.orient .* initial_speed(:mc)
+    truck_spawn_vel = spawnPos.orient .* initial_speed(:truck)
     spawn_pos2 = spawnPos.pos .+ (spawnPos.orient .* 1)
-    add_vehicle!(spawn_pos2, model, truck_spawn_vel, :mc)
+    add_vehicle!(spawn_pos2, model, truck_spawn_vel, :truck)
 end
 
-function t_add_vehicle!(model, road)
+function t_add_vehicle!(model)
     foreach(spawnPos(model.env)) do sp
         t_add_vehicles!(model, sp)
     end
@@ -51,7 +51,7 @@ function initialize()
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
-    t_add_vehicle!(model, model.env)
+    t_add_vehicle!(model)
     return model
 end
 

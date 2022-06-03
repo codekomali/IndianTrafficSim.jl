@@ -62,6 +62,14 @@ function accelerationIDM(this, prec, model)
     return max_acc(this) * (accT - decT)
 end
 
+# some times the signal changes to yellow when the vehicle is way too close to intersection
+# the vehicles are applying sudden brake (decceleration)
+# and sometimes overshoots and stops on top of cross walk
+# this function will prevent that. 
+function is_distant_yellow(this)
+    this.ps.state == :yellow && realdistance(this, this.ps) > vehicle_length(this)
+end
+
 function computeIDMvelocity(this, model)
     addDebugInfo(this, "\nPV Comp:")
     pvdist = this.pv === nothing ? 0 : realdistance(this, this.pv)
@@ -69,7 +77,7 @@ function computeIDMvelocity(this, model)
     acc = accelerationIDM(this, this.pv, model)
     addDebugInfo(this, "PV acc: $(acc)")
     # TODO: CAN WE MOVE STATE TO PRECEDING_SIGNAL ITSELF and SIMPLIFY THIS
-    if this.ps !== nothing && (this.ps.state == :red || this.ps.state == :yellow)
+    if this.ps !== nothing && (this.ps.state == :red || is_distant_yellow(this))
         addDebugInfo(this, "\nPSComp:")
         psdist = realdistance(this, this.ps)
         addDebugInfo(this, "PS Dist $(round(psdist,digits=3))")
