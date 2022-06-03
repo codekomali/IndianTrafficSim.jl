@@ -37,16 +37,16 @@ end
 
 
 function initialize()
-    space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
+    space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT), periodic=false)
     properties = Dict()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
     intersectingRoads = TwoWayIntersectingRoads(3380/2, 0, 3380, 3380/2, 3380, 0)
     #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
-    #horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
-    #verticalRoadT2B = VerticalRoad(1690,3380,0)
-    #verticalRoadB2T = VerticalRoad(1690,0,3380)
+    horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
+    verticalRoadT2B = VerticalRoad(1690,3380,0)
+    verticalRoadB2T = VerticalRoad(1690,0,3380)
     properties[:env] = intersectingRoads
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
@@ -142,12 +142,25 @@ function preceding_signal(this_agent, model)
     nearest_signal(this_agent, preceding_signal, model)
 end
 
+function is_within_extent(pos)
+    x = pos[1]
+    y = pos[2]
+    x_within_extent(x) = x >= 0 && x <= P.EXTENT_WIDTH
+    y_within_extent(y) = y >= 0 && y <= P.EXTENT_HEIGHT
+    return x_within_extent(x) && y_within_extent(y) 
+end
+
 function vehicle_step!(agent, model)
     agent.debugInfo = "" # resetting debugInfo after each step
     agent.pv = preceding_vehicle(agent, model)
     agent.ps = preceding_signal(agent, model)
     agent.vel = computeIDMvelocity(agent, model)
-    move_agent!(agent, model)
+    next_pos = agent.pos .+ agent.vel
+    if is_within_extent(next_pos)
+        move_agent!(agent, model)
+    else
+        kill_agent!(agent, model)
+    end
 end
 
 function plot_environment!(model)
@@ -198,12 +211,19 @@ end
 function debug_info(model)
     id = model.tracked_agent
     id != -1 || return "Not tracking"
-    agent = model[id]
-    """
-    ID = $(id)
-    Vel = $(agent.vel)
-    $(agent.debugInfo)
-    """
+    agent = get(m.agents,id,nothing)
+    if agent !== nothing
+        """
+        ID = $(id)
+        Vel = $(agent.vel)
+        Pos = $(agent.pos)
+        $(agent.debugInfo)
+        """
+    else
+        """
+        agent $(id) does not exist. probably dead!
+        """
+    end
 end
 
 function model_step!(model)
@@ -278,7 +298,7 @@ import GLMakie.register_interaction!
 clicked_pos(p::Point{2, Float32}) = (p[1],p[2]) .|> Float64
 
 function reset_tracking()
-    if m.tracked_agent != -1
+    if m.tracked_agent != -1 && haskey(m.agents, m.tracked_agent)
         m[m.tracked_agent].tracked = false
         m.tracked_agent = -1
     end
