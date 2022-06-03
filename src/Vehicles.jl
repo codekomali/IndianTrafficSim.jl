@@ -48,7 +48,7 @@ end
 
 
 function initialize()
-    space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT), periodic=false)
+    space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT))
     properties = Dict()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
@@ -62,8 +62,8 @@ function initialize()
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
-    t_add_vehicle!(model)
-    #spawn_vehicle!(model)
+    #t_add_vehicle!(model)
+    spawn_vehicle!(model)
     return model
 end
 
@@ -251,7 +251,7 @@ function model_step!(model)
     model.debugtext[] = dbinfo
     println("Tick: $(model.tick)")
     println(dbinfo)
-    #spawn_vehicle!(model)
+    spawn_vehicle!(model)
     # if (model.tick % model.spawn_rate == 0)
     #     rnd_spawn_pos = rand(spawnPos(model.env))
     #     @show rnd_spawn_pos
@@ -266,6 +266,17 @@ function model_step!(model)
     draw_signal!(model.env)
 end
 
+function vehicle_poly1()
+    hw = P.CAR_WIDTH / 2
+    pt = Point2f[(0, -hw), (P.CAR_LENGTH, -hw), (P.CAR_LENGTH, hw), (0, hw)]
+    return Polygon(pt)
+end
+
+function vehicle_marker1(v::VehicleAgent)
+    φ = atan(v.vel[2], v.vel[1])
+    rotate2D(vehicle_poly1(), φ)
+end
+
 function plot_vehicles!()
     model = initialize()
     axiskwargs = (title=P.PLOT_TITLE, titlealign=P.PLOT_TITLE_ALIGN)
@@ -276,9 +287,9 @@ function plot_vehicles!()
         model;
         agent_step! = vehicle_step!,
         model_step! = model_step!,
-        am=vehicle_marker,
+        am=vehicle_marker1,
         params=params,
-        ac=vehicle_color,
+        ac=:blue,
         axis=axiskwargs
     )
     text!(model.steptext, position = (1000, 1000), textsize = 10)
@@ -312,7 +323,7 @@ f,a,m = plot_vehicles!()
 #     return Consume(false)
 # end
 
-import GLMakie.register_interaction!
+# import GLMakie.register_interaction!
 
 clicked_pos(p::Point{2, Float32}) = (p[1],p[2]) .|> Float64
 
@@ -340,12 +351,12 @@ function track_agent(pos)
     println("tracking agent: ", m.tracked_agent)
 end
 
-register_interaction!(a, :my_interaction) do event::MouseEvent, axis
-    if event.type === MouseEventTypes.leftclick
-        #println("You clicked on the axis at datapos $(event.data)")
-        event.data |> clicked_pos |> track_agent
-    end
-end
+# register_interaction!(a, :my_interaction) do event::MouseEvent, axis
+#     if event.type === MouseEventTypes.leftclick
+#         #println("You clicked on the axis at datapos $(event.data)")
+#         event.data |> clicked_pos |> track_agent
+#     end
+# end
 
 
 f
