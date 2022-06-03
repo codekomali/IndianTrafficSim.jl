@@ -53,6 +53,7 @@ function initialize()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
+    properties[:trackpt] =  Observable(Point2f((0,0)))
     intersectingRoads = TwoWayIntersectingRoads(3380/2, 0, 3380, 3380/2, 3380, 0)
     #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
     horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
@@ -230,6 +231,7 @@ function debug_info(model)
     id != -1 || return "Not tracking"
     agent = get(m.agents,id,nothing)
     if agent !== nothing
+        model.trackpt[] = agent.pos
         """
         ID = $(id)
         Vel = $(agent.vel)
@@ -237,6 +239,7 @@ function debug_info(model)
         $(agent.debugInfo)
         """
     else
+        model.trackpt[] = (0.0,0.0)
         """
         agent $(id) does not exist. probably dead!
         """
@@ -299,6 +302,7 @@ function plot_vehicles!()
     text!(model.steptext, position = (1000, 1000), textsize = 10)
     text!(model.debugtext, position = (1000, 3000), textsize = 10)
     plot_environment!(model)
+    scatter!(model.trackpt, color=:red, markersize=5)
     return (fig, ax, model)
 end
 
@@ -335,6 +339,7 @@ function reset_tracking()
     if m.tracked_agent != -1 && haskey(m.agents, m.tracked_agent)
         m[m.tracked_agent].tracked = false
         m.tracked_agent = -1
+        m.trackpt[] = (0.0,0.0)
     end
 end
 
