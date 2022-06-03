@@ -35,6 +35,17 @@ function t_add_vehicle!(model)
     end
 end
 
+function spawn_vehicle!(model)
+    rnd_spawn_pos = rand(spawnPos(model.env))
+    rnd_type = rand([:car, :truck, :mc])
+    sds = safeDistToSpawn(rnd_type)
+    spv = preceding_vehicle(rnd_spawn_pos, model)
+    if(spv === nothing || realdistance(rnd_spawn_pos,spv,rnd_type) > sds)
+        println("Spawning $(rnd_type) at position $(rnd_spawn_pos.pos)")
+        add_vehicle!(rnd_spawn_pos.pos, model, rnd_spawn_pos.orient .* initial_speed(rnd_type), rnd_type)
+    end
+end
+
 
 function initialize()
     space2d = ContinuousSpace((P.EXTENT_WIDTH, P.EXTENT_HEIGHT), periodic=false)
@@ -52,6 +63,7 @@ function initialize()
     properties[:tracked_agent] = -1
     model = ABM(VehicleAgent, space2d, scheduler=Schedulers.randomly; properties=properties)
     t_add_vehicle!(model)
+    #spawn_vehicle!(model)
     return model
 end
 
@@ -125,10 +137,15 @@ function nearest_signal(v::VehicleAgent, signals, model; kwargs...)
     nearest_signal(v.pos, signals, model, kwargs...) 
 end
 
-function preceding_vehicle(this_agent, model)
+function preceding_vehicle(this_agent::VehicleAgent, model)
     nearby_agentset = Set(nearby_agents(this_agent, model, 300.0)) #Magic number
     preceding_agentset = filter(other -> isPreceding(this_agent, other), nearby_agentset)
     nearest_agent(this_agent, preceding_agentset, model)
+end
+
+function preceding_vehicle(this_pos::SpawnPosition, model)
+    preceding_agentset = filter(other -> isPreceding(this_pos, other), collect(allagents(model)))
+    nearest_agent(this_pos.pos, preceding_agentset, model)
 end
 
 function nearby_signals(this_agent, model, dist_thresh=675) # ≈ 50 meters (magic number)
@@ -200,7 +217,7 @@ function cross_paths(twir)
     return cps
 end
 
-# Clean up move to draw or create draw_debug
+# Clean up: move to draw or create draw_debug
 function mark_spawn_positions(twir::TwoWayIntersectingRoads)
     for sp in spawnPos(twir)
         spawnPt = Point2f(sp.pos...)
@@ -226,6 +243,7 @@ function debug_info(model)
     end
 end
 
+
 function model_step!(model)
     model.tick += 1
     model.steptext[] = "Step: " * string(model.tick)
@@ -233,6 +251,7 @@ function model_step!(model)
     model.debugtext[] = dbinfo
     println("Tick: $(model.tick)")
     println(dbinfo)
+    #spawn_vehicle!(model)
     # if (model.tick % model.spawn_rate == 0)
     #     rnd_spawn_pos = rand(spawnPos(model.env))
     #     @show rnd_spawn_pos

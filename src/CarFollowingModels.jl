@@ -19,6 +19,11 @@ function safeDistByVel(this)
    return sdv
 end
 
+function safeDistToSpawn(type)
+    sdp = jam_dist_S0(type) + (safe_time_T(type) * initial_speed(type))
+    return sdp
+end
+
 function safeDistByDeltaVel(this, prec) 
     sddv = (vel(this) * Δv(this,prec)) / (2 * √(max_acc(this) * comfort_dec(this)))
     addDebugInfo(this, "SDDV: $(sddv)")
@@ -31,11 +36,13 @@ function desiredDistance(this, prec)
     return dd
 end
 
-accTendency(this) =  1 - (vel(this)/ pref_vel_V0(this))^4
+accTendency(this) =  1 - (vel(this) / pref_vel_V0(this))^4
 
 # the real distance between vehicle and other things (subtracting vehicle distance)
 # TODO: Change Name and move as appropriate
 realdistance(this::VehicleAgent, prec::VehicleAgent) = U.euc_dist(this.pos, prec.pos) - vehicle_length(this)
+
+realdistance(this::SpawnPosition, prec::VehicleAgent, type::Symbol) = U.euc_dist(this.pos, prec.pos) - vehicle_length(type)
 
 # TODO: Change Name and move as appropriate
 function realdistance(this::VehicleAgent, sig::Signal)

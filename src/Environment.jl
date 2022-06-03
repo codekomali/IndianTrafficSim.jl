@@ -111,6 +111,8 @@ mutable struct HorizontalRoad <: Road
     signal::Signal
 end
 
+
+
 function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWidth=P.H_LANE_WIDTH)
     startPos = (startXpos, Ypos)
     endPos = (endXpos, Ypos)
@@ -118,6 +120,8 @@ function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWi
     spawnPos = []
     for _ in 1:numLanes
         laneSpawnPos = SpawnPosition((startXpos, lanemid),U.orientation(startPos, endPos))
+        #TODO: A better way to do offset instead of this
+        laneSpawnPos.pos = laneSpawnPos.pos .+ laneSpawnPos.orient
         spawnPos = push!(spawnPos, laneSpawnPos)
         lanemid += laneWidth
     end
@@ -156,6 +160,8 @@ function VerticalRoad(Xpos, startYpos, endYpos; numLanes=P.V_NUM_LANES, laneWidt
     spawnPos = []
     for _ in 1:numLanes
         laneSpawnPos = SpawnPosition((lanemid, startYpos),U.orientation(startPos, endPos))
+        #TODO: A better way to do offset instead of this
+        laneSpawnPos.pos = laneSpawnPos.pos .+ laneSpawnPos.orient
         spawnPos = push!(spawnPos, laneSpawnPos)
         lanemid += laneWidth
     end
