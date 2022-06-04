@@ -226,4 +226,8 @@ const MC_S0_jam = MC_LENGTH + 10
 #color
 const MC_COLOR = :blue
 
+# PEDESTRIAN RELATED
+# average walking speed = 1.4 m/s
+const PED_SPEED = U.mps_to_upt(1.4)
+
 end

@@ -218,3 +218,24 @@ function addDebugInfo(agent::VehicleAgent, debugInfo)
     # we may restrict this later for only tracked vehicle(s)
     agent.debugInfo *= (debugInfo * "\n")
 end
+
+mutable struct Pedestrian
+    id::Int
+    pos::Observable{Point{2, Float32}}
+    orient::NTuple{2,Float64}
+    vel::NTuple{2,Float64}
+    source::NTuple{2,Float64}
+    dest::NTuple{2,Float64}
+    scatter::Scatter{Tuple{Vector{Point{2, Float32}}}} 
+end
+
+function Pedestrian(len, sd_pair)
+    id = len + 1
+    pos = Observable(Point2f(sd_pair[1]))
+    source = sd_pair[1]
+    dest = sd_pair[2]
+    orient = U.orientation(source, dest)
+    vel = orient .* P.PED_SPEED
+    s = scatter!(pos, color=:blue, markersize=5)
+    Pedestrian(id, pos, orient, vel, source, dest, s)
+end

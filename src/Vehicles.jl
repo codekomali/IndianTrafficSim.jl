@@ -40,10 +40,39 @@ function spawn_vehicle!(model)
     rnd_type = rand([:car, :truck, :mc])
     sds = safeDistToSpawn(rnd_type)
     spv = preceding_vehicle(rnd_spawn_pos, model)
-    if(spv === nothing || realdistance(rnd_spawn_pos,spv,rnd_type) > sds)
+    if (spv === nothing || realdistance(rnd_spawn_pos, spv, rnd_type) > sds)
         println("Spawning $(rnd_type) at position $(rnd_spawn_pos.pos)")
         add_vehicle!(rnd_spawn_pos.pos, model, rnd_spawn_pos.orient .* initial_speed(rnd_type), rnd_type)
     end
+end
+
+function spawn_pedestrians!(model)
+    println(" in spawn pedestrian")
+    rnd_spawn_pos = rand(pedestrian_spawn_pos(model.cross_paths))
+    ped = Pedestrian(length(model.pedestrians), rnd_spawn_pos)
+    println("Spawning pedestrian at position $(ped.pos)")
+    println(model.pedestrians)
+    push!(model.pedestrians, ped)
+    println(" done spawn pedestrian")
+end
+
+function move_pedestrians!(model)
+    for ped in model.pedestrians
+        ped.pos[] = ped.pos[] .+ ped.vel
+    end
+end
+
+function kill_pedestrians!(model)
+    peds = Vector{Pedestrian}()
+    for ped in model.pedestrians
+        # keep only pedestrians who are more than 5.0 away from dest
+        if U.euc_dist(ped.pos[].data, ped.dest) > 5.0
+            push!(peds, ped)
+        else
+            delete!(m.axis, ped.scatter)
+        end
+    end
+    model.pedestrians = peds
 end
 
 
@@ -53,12 +82,16 @@ function initialize()
     properties[:tick] = 0
     properties[:steptext] = Observable("Step: " * string(properties[:tick]))
     properties[:debugtext] = Observable("")
-    properties[:trackpt] =  Observable(Point2f((0,0)))
-    intersectingRoads = TwoWayIntersectingRoads(3380/2, 0, 3380, 3380/2, 3380, 0)
+    properties[:trackpt] = Observable(Point2f((0, 0)))
+    properties[:axis] = nothing
+    # MAKE THE BELOW TYPE AWARE
+    properties[:cross_paths] = Vector{CrossPath}()
+    properties[:pedestrians] = Vector{Pedestrian}()
+    intersectingRoads = TwoWayIntersectingRoads(3380 / 2, 0, 3380, 3380 / 2, 3380, 0)
     #horizontalRoadL2R = HorizontalRoad(2000, 0, 3380)
     horizontalRoadR2L = HorizontalRoad(2000, 3380, 0)
-    verticalRoadT2B = VerticalRoad(1690,3380,0)
-    verticalRoadB2T = VerticalRoad(1690,0,3380)
+    verticalRoadT2B = VerticalRoad(1690, 3380, 0)
+    verticalRoadB2T = VerticalRoad(1690, 0, 3380)
     properties[:env] = intersectingRoads
     properties[:spawn_rate] = 1400
     properties[:tracked_agent] = -1
@@ -69,7 +102,7 @@ function initialize()
 end
 
 
-function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0), type= :car, tracked = false)
+function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.0), type=:car, tracked=false)
     add_agent!(
         spawn_pos,
         model,
@@ -83,13 +116,13 @@ function add_vehicle!(spawn_pos, model, initial_vel=(P.VEHICLE_INITIAL_SPEED, 0.
     )
 end
 
-function nearest_agent(this_agent::VehicleAgent, others, model; 
-    considerThresh = false,
-    nearbyThresh = P.AGENT_NEARBY_THRESH)
+function nearest_agent(this_agent::VehicleAgent, others, model;
+    considerThresh=false,
+    nearbyThresh=P.AGENT_NEARBY_THRESH)
     nearest_agent = nothing
     nearest_dist = Inf
     for o in others
-        dist = edistance(this_agent,o, model)
+        dist = edistance(this_agent, o, model)
         if dist < nearest_dist && (!considerThresh || dist <= nearbyThresh)
             nearest_dist = dist
             nearest_agent = o
@@ -98,15 +131,15 @@ function nearest_agent(this_agent::VehicleAgent, others, model;
     return nearest_agent
 end
 
-function nearest_agent(pos::NTuple{2, Float64}, others, model;
-    considerThresh = false,
-    nearbyThresh = P.AGENT_NEARBY_THRESH)
+function nearest_agent(pos::NTuple{2,Float64}, others, model;
+    considerThresh=false,
+    nearbyThresh=P.AGENT_NEARBY_THRESH)
     nearest_agent = nothing
     nearest_dist = Inf
     for o in others
         #Note: A potential to contribute to Agents.jl
         # edistance should work for Pos<->Agent pair (currently not supported)
-        dist = edistance(pos,o.pos, model)
+        dist = edistance(pos, o.pos, model)
         if dist < nearest_dist && (!considerThresh || dist <= nearbyThresh)
             nearest_dist = dist
             nearest_agent = o
@@ -116,9 +149,9 @@ function nearest_agent(pos::NTuple{2, Float64}, others, model;
 end
 
 
-function nearest_signal(pos::NTuple{2, Float64}, signals, model;
-    considerThresh = false,
-    nearbyThresh = P.AGENT_NEARBY_THRESH)
+function nearest_signal(pos::NTuple{2,Float64}, signals, model;
+    considerThresh=false,
+    nearbyThresh=P.AGENT_NEARBY_THRESH)
     nearest_sig = nothing
     nearest_dist = Inf
     for sig in signals
@@ -135,7 +168,7 @@ function nearest_signal(pos::NTuple{2, Float64}, signals, model;
 end
 
 function nearest_signal(v::VehicleAgent, signals, model; kwargs...)
-    nearest_signal(v.pos, signals, model, kwargs...) 
+    nearest_signal(v.pos, signals, model, kwargs...)
 end
 
 function preceding_vehicle(this_agent::VehicleAgent, model)
@@ -151,7 +184,7 @@ end
 
 function nearby_signals(this_agent, model, dist_thresh=675) # ≈ 50 meters (magic number)
     #TODO: better way is to import and specialize edistance from Agents.jl
-    filter(signal -> signal.active && realdistance(this_agent,signal) <= dist_thresh, signals(model.env))
+    filter(signal -> signal.active && realdistance(this_agent, signal) <= dist_thresh, signals(model.env))
 end
 
 function preceding_signal(this_agent, model)
@@ -165,7 +198,7 @@ function is_within_extent(pos)
     y = pos[2]
     x_within_extent(x) = x >= 0 && x <= P.EXTENT_WIDTH
     y_within_extent(y) = y >= 0 && y <= P.EXTENT_HEIGHT
-    return x_within_extent(x) && y_within_extent(y) 
+    return x_within_extent(x) && y_within_extent(y)
 end
 
 function vehicle_step!(agent, model)
@@ -182,12 +215,12 @@ function vehicle_step!(agent, model)
 end
 
 function plot_environment!(model)
-    custom_setup_environment!(model.env)
+    custom_setup_environment!(model.env, model)
     drawRoad!(model.env)
 end
 
 # Move this to drawing the TWIR instead of here
-function custom_setup_environment!(twir::TwoWayIntersectingRoads)
+function custom_setup_environment!(twir::TwoWayIntersectingRoads, model::AgentBasedModel)
     # Make the signals on the edge inactive
     twir.leftRoadSeg.R2Lroad.signal.active = false
     twir.rightRoadSeg.L2Rroad.signal.active = false
@@ -198,15 +231,38 @@ function custom_setup_environment!(twir::TwoWayIntersectingRoads)
     setSignalState!(twir.rightRoadSeg.R2Lroad.signal, :green)
     setSignalState!(twir.topRoadSeg.T2Broad.signal, :red)
     setSignalState!(twir.bottomRoadSeg.B2Troad.signal, :red)
-    foreach(draw_cross_path!, cross_paths(twir))
+    model.cross_paths = cross_paths(twir)
+    foreach(draw_cross_path!, model.cross_paths)
 end
 
-function custom_setup_environment!(road)
+function pedestrian_spawn_pos(cps::Vector{CrossPath})
+    reduce(vcat, map(pedestrian_spawn_pos, cps))
+end
+
+function pedestrian_spawn_pos(cp::HcrossPath)
+    topy = top_boundary(cp.road)[1][2]
+    boty = bottom_boundary(cp.road)[1][2]
+    return [
+        ((cp.xpos, topy + 10), (cp.xpos, boty - 10)),
+        ((cp.xpos, boty - 10), (cp.xpos, topy + 10))
+    ]
+end
+
+function pedestrian_spawn_pos(cp::VcrossPath)
+    leftx = left_boundary(cp.road)[1][1]
+    rightx = right_boundary(cp.road)[1][1]
+    return [
+        ((leftx - 10, cp.ypos), (rightx + 10, cp.ypos)),
+        ((rightx + 10, cp.ypos), (leftx - 10, cp.ypos))
+    ]
+end
+
+function custom_setup_environment!(road, model)
     println("Nothing to customize!")
 end
 
-function cross_paths(twir)
-    cps = []
+function cross_paths(twir::TwoWayIntersectingRoads)
+    cps = Vector{CrossPath}()
     xpos = top_boundary(twir.leftRoadSeg)[2][1] - P.CROSS_PATH_WIDTH - P.CROSS_PATH_MARGIN
     push!(cps, HcrossPath(twir.leftRoadSeg, xpos))
     xpos = top_boundary(twir.rightRoadSeg)[1][1] + P.CROSS_PATH_WIDTH + P.CROSS_PATH_MARGIN
@@ -229,7 +285,7 @@ end
 function debug_info(model)
     id = model.tracked_agent
     id != -1 || return "Not tracking"
-    agent = get(m.agents,id,nothing)
+    agent = get(m.agents, id, nothing)
     if agent !== nothing
         model.trackpt[] = agent.pos
         """
@@ -239,11 +295,19 @@ function debug_info(model)
         $(agent.debugInfo)
         """
     else
-        model.trackpt[] = (0.0,0.0)
+        model.trackpt[] = (0.0, 0.0)
         """
         agent $(id) does not exist. probably dead!
         """
     end
+end
+
+function pedestrian_step!(model)
+    kill_pedestrians!(model)
+    if length(model.pedestrians) < 1
+        spawn_pedestrians!(model)
+    end
+    move_pedestrians!(model)
 end
 
 
@@ -254,18 +318,8 @@ function model_step!(model)
     model.debugtext[] = dbinfo
     println("Tick: $(model.tick)")
     println(dbinfo)
+    pedestrian_step!(model)
     spawn_vehicle!(model)
-    # if (model.tick % model.spawn_rate == 0)
-    #     rnd_spawn_pos = rand(spawnPos(model.env))
-    #     @show rnd_spawn_pos
-    #     spawn_vel = rnd_spawn_pos.orient .* P.VEHICLE_INITIAL_SPEED
-    #     @show spawn_vel
-    #     add_vehicle!(rnd_spawn_pos.pos, model, spawn_vel)
-    # end
-    # if(model.tick == 2500)
-    #     model.env.signal.state = :green
-    #     draw_signal!(model.env)
-    # end
     draw_signal!(model.env)
 end
 
@@ -288,10 +342,10 @@ function plot_vehicles!()
     params = Dict(
         :spawn_rate => P.VSR_MIN:P.VSR_INC:P.VSR_MAX,
     )
-    fig,ax, _ = abmplot(
+    fig, ax, _ = abmplot(
         model;
-        agent_step! = vehicle_step!,
-        model_step! = model_step!,
+        (agent_step!)=vehicle_step!,
+        (model_step!)=model_step!,
         am=vehicle_marker,
         params=params,
         # TODO: File bug with InteractiveDynamics.jl team that function for ac is broken
@@ -299,8 +353,9 @@ function plot_vehicles!()
         ac=:green,
         axis=axiskwargs
     )
-    text!(model.steptext, position = (1000, 1000), textsize = 10)
-    text!(model.debugtext, position = (1000, 3000), textsize = 10)
+    model.axis = ax
+    text!(model.steptext, position=(1000, 1000), textsize=10)
+    text!(model.debugtext, position=(1000, 3000), textsize=10)
     plot_environment!(model)
     scatter!(model.trackpt, color=:red, markersize=5)
     return (fig, ax, model)
@@ -316,7 +371,7 @@ macro pv()
     end
 end
 
-f,a,m = plot_vehicles!()
+f, a, m = plot_vehicles!()
 
 # on(events(f).mousebutton, priority = 0) do event
 #     if event.button == Mouse.left
@@ -333,13 +388,13 @@ f,a,m = plot_vehicles!()
 
 import GLMakie.register_interaction!
 
-clicked_pos(p::Point{2, Float32}) = (p[1],p[2]) .|> Float64
+clicked_pos(p::Point{2,Float32}) = (p[1], p[2]) .|> Float64
 
 function reset_tracking()
     if m.tracked_agent != -1 && haskey(m.agents, m.tracked_agent)
         m[m.tracked_agent].tracked = false
         m.tracked_agent = -1
-        m.trackpt[] = (0.0,0.0)
+        m.trackpt[] = (0.0, 0.0)
     end
 end
 
@@ -353,7 +408,7 @@ function track_agent(pos)
     # agents = map(id -> m[id],ids)
     agents = allagents(m) |> collect
     n_agent = nearest_agent(pos, agents, m, considerThresh=true)
-    if n_agent !== nothing 
+    if n_agent !== nothing
         n_agent.tracked = true
         m.tracked_agent = n_agent.id
     end
