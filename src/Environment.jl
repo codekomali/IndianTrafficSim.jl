@@ -5,11 +5,6 @@
 
 #module Environment
 
-# Scale
-# Typical lane width = 3.7 m
-# Current lane width = 50 units
-# ∴ 1 m = (50/3.7) ≈ 15.5 units
-
 # export plot_environment!
 
 using Agents
@@ -28,18 +23,19 @@ abstract type Road end
 mutable struct Signal
     pos::NTuple{2,Float64}
     state::Symbol
+    orientation::NTuple{2, Float64}
     countDown::Int64
     plot::Union{Scatter,Missing}
     active::Bool
 end
 
-function Signal(pos, state)
+function Signal(pos, state, orient)
     if state === :red
-        return Signal(pos, state, P.SIGNAL_RED_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_RED_TIME, missing, true)
     elseif state === :green
-        return Signal(pos, state, P.SIGNAL_GREEN_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_GREEN_TIME, missing, true)
     else
-        return Signal(pos, state, P.SIGNAL_YELLOW_TIME, missing, true)
+        return Signal(pos, state, orient, P.SIGNAL_YELLOW_TIME, missing, true)
     end
 end
 
@@ -115,6 +111,8 @@ mutable struct HorizontalRoad <: Road
     signal::Signal
 end
 
+
+
 function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWidth=P.H_LANE_WIDTH)
     startPos = (startXpos, Ypos)
     endPos = (endXpos, Ypos)
@@ -122,13 +120,18 @@ function HorizontalRoad(Ypos, startXpos, endXpos; numLanes=P.H_NUM_LANES, laneWi
     spawnPos = []
     for _ in 1:numLanes
         laneSpawnPos = SpawnPosition((startXpos, lanemid),U.orientation(startPos, endPos))
+        #TODO: A better way to do offset instead of this
+        laneSpawnPos.pos = laneSpawnPos.pos .+ laneSpawnPos.orient
         spawnPos = push!(spawnPos, laneSpawnPos)
         lanemid += laneWidth
     end
     signalPos = hsignalPos(Ypos, startXpos, endXpos, half_width(numLanes, laneWidth))
-    signal = Signal(signalPos, :red)
+    # TODO: Orientation can be a property of the road itself
+    signal = Signal(signalPos, :red, U.orientation(startPos, endPos))
     return HorizontalRoad(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
 end
+
+spawnPos(road::Road) = road.spawnPos
 
 top_boundary(road::HorizontalRoad) = (
     road.startPos .+ (0, half_width(road)),
@@ -138,6 +141,8 @@ bottom_boundary(road::HorizontalRoad) = (
     road.startPos .- (0, half_width(road)),
     road.endPos .- (0, half_width(road))
 )
+
+signals(road::Road) = [road.signal]
 
 mutable struct VerticalRoad <: Road
     startPos::NTuple{2,Float64}
@@ -155,11 +160,14 @@ function VerticalRoad(Xpos, startYpos, endYpos; numLanes=P.V_NUM_LANES, laneWidt
     spawnPos = []
     for _ in 1:numLanes
         laneSpawnPos = SpawnPosition((lanemid, startYpos),U.orientation(startPos, endPos))
+        #TODO: A better way to do offset instead of this
+        laneSpawnPos.pos = laneSpawnPos.pos .+ laneSpawnPos.orient
         spawnPos = push!(spawnPos, laneSpawnPos)
         lanemid += laneWidth
     end
     signalPos = vsignalPos(Xpos, startYpos, endYpos, half_width(numLanes, laneWidth))
-    signal = Signal(signalPos, :red)
+    # TODO: Orientation can be a property of the road itself
+    signal = Signal(signalPos, :red, U.orientation(startPos, endPos))
     return VerticalRoad(startPos, endPos, numLanes, laneWidth, spawnPos, signal)
 end
 
