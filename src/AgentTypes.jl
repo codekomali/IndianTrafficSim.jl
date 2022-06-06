@@ -226,6 +226,7 @@ mutable struct Pedestrian
     vel::NTuple{2,Float64}
     source::NTuple{2,Float64}
     dest::NTuple{2,Float64}
+    wait::Bool
     scatter::Scatter{Tuple{Vector{Point{2, Float32}}}} 
 end
 
@@ -237,5 +238,5 @@ function Pedestrian(len, sd_pair)
     orient = U.orientation(source, dest)
     vel = orient .* P.PED_SPEED
     s = scatter!(pos, color=:blue, markersize=5)
-    Pedestrian(id, pos, orient, vel, source, dest, s)
+    Pedestrian(id, pos, orient, vel, source, dest, true, s)
 end

@@ -47,18 +47,33 @@ function spawn_vehicle!(model)
 end
 
 function spawn_pedestrians!(model)
-    println(" in spawn pedestrian")
     rnd_spawn_pos = rand(pedestrian_spawn_pos(model.cross_paths))
     ped = Pedestrian(length(model.pedestrians), rnd_spawn_pos)
     println("Spawning pedestrian at position $(ped.pos)")
     println(model.pedestrians)
     push!(model.pedestrians, ped)
-    println(" done spawn pedestrian")
+end
+
+time_to_cross_road(ped) = U.euc_dist(ped.source, ped.dest)/P.PED_SPEED |> ceil
+
+
+function updateWaitStatus(ped, model)
+    ss = filter(x -> x.active && x.orientation != ped.orient , signals(model.env))
+    ns = nearest_signal(ped.source, ss, model)
+    if ns.state === :red && ns.countDown > time_to_cross_road(ped) 
+        ped.wait = false
+    end
 end
 
 function move_pedestrians!(model)
     for ped in model.pedestrians
-        ped.pos[] = ped.pos[] .+ ped.vel
+        # When in wait mode the pedestrian won't move
+        # see if the status can be updated
+        if ped.wait
+            updateWaitStatus(ped, model)
+        else
+            ped.pos[] = ped.pos[] .+ ped.vel
+        end
     end
 end
 
