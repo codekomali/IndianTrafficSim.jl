@@ -369,8 +369,8 @@ function plot_vehicles!()
         axis=axiskwargs
     )
     model.axis = ax
-    text!(model.steptext, position=(1000, 1000), textsize=10)
-    text!(model.debugtext, position=(1000, 3000), textsize=10)
+    text!(model.steptext, position=(500, 1000), textsize=20, color=:brown)
+    text!(model.debugtext, position=(500, 2100), textsize=10, color=:red)
     plot_environment!(model)
     scatter!(model.trackpt, color=:red, markersize=5)
     return (fig, ax, model)
@@ -406,8 +406,10 @@ import GLMakie.register_interaction!
 clicked_pos(p::Point{2,Float32}) = (p[1], p[2]) .|> Float64
 
 function reset_tracking()
-    if m.tracked_agent != -1 && haskey(m.agents, m.tracked_agent)
-        m[m.tracked_agent].tracked = false
+    if m.tracked_agent != -1 
+        if haskey(m.agents, m.tracked_agent)
+            m[m.tracked_agent].tracked = false
+        end
         m.tracked_agent = -1
         m.trackpt[] = (0.0, 0.0)
     end
