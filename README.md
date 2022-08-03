@@ -9,6 +9,10 @@ Indian Traffic Simulator a traffic simulator built entirely in Julia. It is an e
 
 Traffic in India and other developing nations are not the same as traffic in many Western countries. While IndianTrafficSim can be used for simulating traffic in western nations, it will include significant support for simulating Indian traffic including poor lane discipline, higher hetrogenity (two wheelers, tuk-tuks, etc.).
 
+Models Supported by IndianTrafficSim
+* Intelligent Driver Model (IDM) - Treiber, Martin; Hennecke, Ansgar; Helbing, Dirk (2000), "Congested traffic states in empirical observations and microscopic simulations", Physical Review E, 62 (2): 1805–182
+* Minimizing Overall Braking Induced by Lane Changes (MOBIL) - Treiber, M., & Helbing, D. (2016). Mobil: General lane-changing model for car-following models. Disponıvel Acesso Dezembro. (in progress)
+
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://codekomali.github.io/IndianTrafficSim.jl/dev)
 [![Build Status](https://github.com/codekomali/IndianTrafficSim.jl/actions/workflows/CI.yml/badge.svg?branch=master)](https://github.com/codekomali/IndianTrafficSim.jl/actions/workflows/CI.yml?query=branch%3Amaster)

@@ -312,7 +312,7 @@ function debug_info(model)
     else
         model.trackpt[] = (0.0, 0.0)
         """
-        agent $(id) does not exist. probably dead!
+        agent $(id) is probably out of sim!
         """
     end
 end
